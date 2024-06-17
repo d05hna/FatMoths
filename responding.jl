@@ -48,9 +48,9 @@ function h5_to_df(path)
 
             
         return df
-        end
     end
-##
+end
+
 function remove_bias(moth,datadir)
     params = Dict{String, Any}()
 
@@ -89,7 +89,7 @@ function remove_bias(moth,datadir)
     params["bias"] = bias
     return(params)
 end
-##
+
 function read_moth_emgft(dpath,moth)
     df = h5_to_df(dpath)
 
@@ -220,7 +220,7 @@ function calculate_gains(signal1, signal2, fs, frequencies)
         freq_index = argmin(abs.(freq_vector .- frequency))
         mag1 = abs(fft1[freq_index])
         mag2 = abs(fft2[freq_index])
-        gains[i] = (mag1 /mag2)
+        gains[i] = 20*log10(mag1 /mag2)
     end
 
     return gains
@@ -230,17 +230,17 @@ fs = 10000
 
 fpre = df[df.trial .== "pre",[:time_abs,:fx,:fy,:fz]]
 rename!(fpre,"time_abs"=>"time")
-ppre = full_pos[1:200000]
+ppre = zscore(full_pos[1:200000])
 
 
 fpost = df[df.trial .== "post",[:time_abs,:fx,:fy,:fz]]
 rename!(fpost,"time_abs"=>"time")
-ppost = full_pos[400001:end]
+ppost = zscore(full_pos[400001:end])
 
-f_range = 0.05:0.05:20
+f_range = sort(vcat(freqqs, freqqs .-0.05,freqqs .+ 0.05))
 ##
-gs_pre = calculate_gains(fpre.fx,ppre,fs,freqqs)
-gs_post = calculate_gains(fpost.fx,ppost,fs,freqqs)
+gs_pre = calculate_gains(zscore(fpre.fx),ppre,fs,freqqs)
+gs_post = calculate_gains(zscore(fpost.fx),ppost,fs,freqqs)
 
 max_value = maximum([maximum(abs.(gs_pre)), maximum(abs.(gs_post))])
 
@@ -249,11 +249,11 @@ max_value = maximum([maximum(abs.(gs_pre)), maximum(abs.(gs_post))])
 f = Figure(figsize=(6,6))
 ax = Axis(f[1,1],xscale=log10)
 
-pre = scatter!(ax,freqqs,1 .- (gs_pre ./ max_value),alpha=0.5)
-post = scatter!(ax,freqqs,1 .- (gs_post ./max_value),alpha=0.5)
+pre = scatter!(ax,freqqs, gs_pre,alpha=0.5)
+post = scatter!(ax,freqqs,gs_post,alpha=0.5)
 
 ax.xlabel = "Freq"
-ax.ylabel = "Gain"
+ax.ylabel = "Gain (db)"
 
 ax.title = "Frequency Response Before and after feeding"
 
@@ -263,5 +263,5 @@ Legend(f[1,2],[pre,post,fr],["First Epoch","Last Epoch","Driving Freqs"])
 
 hidedecorations!(ax,label=false,ticklabels=false,ticks=false)
 
-save("gain_norm_range.png",f,px_per_unit=4)
+save("gain$(moth).png",f,px_per_unit=4)
 f
