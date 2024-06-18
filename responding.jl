@@ -265,3 +265,39 @@ hidedecorations!(ax,label=false,ticklabels=false,ticks=false)
 
 save("gain$(moth).png",f,px_per_unit=4)
 f
+##
+
+function integrate(vec,dt=0.0001)
+    itrs = length(vec)
+
+    res = zeros(itrs)
+
+    for i in 2:itrs
+        res[i] = res[i-1] + vec[i]*dt
+    end
+    return res
+end
+##
+
+Ax = (fpre.fx .- mean(fpre.fx))./params["mass"]
+Vx = integrate(Ax)
+X = integrate(Vx)
+##
+t = fpre.time
+f = Figure()
+ax1 = Axis(f[1,1])
+ax2 = Axis(f[2,1])
+ax3 = Axis(f[3,1])
+
+lines!(ax1,t,Ax)
+lines!(ax2,t,Vx)
+lines!(ax3,t,X)
+
+ax1.title = "Acceleration (x)"
+ax2.title = "Velocity (x)"
+ax3.title = "Position (x)"
+ax3.xlabel = "Time (s)"
+
+save("kinematics.png",f,px_per_unit=4)
+
+f
