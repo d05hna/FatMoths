@@ -301,3 +301,52 @@ ax3.xlabel = "Time (s)"
 save("kinematics.png",f,px_per_unit=4)
 
 f
+##
+dt = 0.0001
+motor_pos = full_pos[1:200000]
+motor_velo = [(motor_pos[i]-motor_pos[i-1])/dt for i in 2:length(motor_pos)]
+pushfirst!(motor_velo,0)
+
+fft_motor = fft(motor_pos)
+fft_velo = fft(motor_velo)
+fft_fx = fft(fpre.fx)
+
+freq_range = fftfreq(length(motor_pos),fs)[2:10000]
+
+mag= abs.(fft_motor)[2:10000]
+phase = angle.(fft_motor)[2:10000]
+
+magvelo = abs.(fft_velo)[2:10000]
+phasevelo = angle.(fft_velo)[2:10000]
+
+magfx = abs.(fft_fx)[2:10000]
+phasefx = angle.(fft_fx)[2:10000]
+
+##
+
+f = Figure()
+ax1 = Axis(f[1,1],xscale=log10)
+ax2 = Axis(f[2,1],xscale=log10)
+
+ax3 = Axis(f[1,2],xscale=log10)
+ax4 = Axis(f[2,2],xscale=log10)
+
+motor = lines!(ax1,freq_range,mag ./maximum(mag),color=:blue,alpha=0.7)
+fr = vlines!(ax1,freqqs,color=:grey,linestyle=:dash,alpha=0.3)
+lines!(ax2,freq_range,phase,color=:blue,alpha=0.7)
+
+forc = lines!(ax1,freq_range,magfx ./maximum(magfx),color=:green,alpha=0.7)
+lines!(ax2,freq_range,phasefx,color=:green,alpha=0.7)
+vlines!(ax1,[18,36,54,72,90],color=:red)
+lines!(ax3,freq_range,magvelo ./maximum(magvelo),color=:orange)
+fr = vlines!(ax3,freqqs,color=:grey,linestyle=:dash,alpha=0.3)
+lines!(ax4,freq_range,phasevelo,color=:orange)
+
+ax1.title= "Motor and Moth Magnitude"
+ax2.title= "Motor and Moth Phase"
+ax3.title= "Motor Veloctiy Magnitude"
+ax4.title= "Motor Velocity Phase"
+
+Legend(f[:,3],[motor,forc],["Motor","Moth Fx"])
+save("FFT.png",f,px_per_unit=4)
+f
