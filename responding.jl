@@ -282,7 +282,14 @@ end
 Ax = (fpre.fx .- mean(fpre.fx))./params["mass"]
 Vx = integrate(Ax)
 X = integrate(Vx)
+
+sl = (X[end] - X[1])/length(X) 
+fl = (1:1:length(X)) .* sl
+
+detrend_X = (X - fl) 
+
 ##
+
 t = fpre.time
 f = Figure()
 ax1 = Axis(f[1,1])
@@ -291,11 +298,11 @@ ax3 = Axis(f[3,1])
 
 lines!(ax1,t,Ax)
 lines!(ax2,t,Vx)
-lines!(ax3,t,X)
+lines!(ax3,t,detrend_X)
 
 ax1.title = "Acceleration (x)"
 ax2.title = "Velocity (x)"
-ax3.title = "Position (x)"
+ax3.title = "(Detrend) Position (x)"
 ax3.xlabel = "Time (s)"
 
 save("kinematics.png",f,px_per_unit=4)
