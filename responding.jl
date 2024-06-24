@@ -17,8 +17,8 @@ include("/home/doshna/Documents/PHD/comparativeMPanalysis/functions.jl")
 ##
 datadir = "/home/doshna/Documents/PHD/data/fatties/"
 
-files = glob("*_06/*.h5",datadir)
-ps = glob("*_06/*.csv",datadir)
+files = glob("*_20/*.h5",datadir)
+ps = glob("*_20/*.csv",datadir)
 dpath = files[1]
 spath = ps[1]
 ##
@@ -51,44 +51,6 @@ function h5_to_df(path)
     end
 end
 
-function remove_bias(moth,datadir)
-    params = Dict{String, Any}()
-
-    q = h5_to_df(glob("$(moth)/*quiet.h5",datadir)[1])
-    empty = h5_to_df(glob("$(moth)/*empty.h5",datadir)[1])
-    ft_names = ["fx","fy","fz","tx","ty","tz"]
-
-    post = h5_to_df(glob("$(moth)/*quietpost.h5",datadir)[1])
-
-    bias = mean(Matrix(empty[!,ft_names]), dims=1)
-    quiet = mean(Matrix(q[!,ft_names]), dims=1)
-
-    quiet = transform_FT(transpose(quiet .- bias))
-
-    post = mean(Matrix(post[!,ft_names]), dims=1)
-    post = transform_FT(transpose(post .- bias))
-
-    A = [0 -quiet[3] quiet[2];
-    quiet[3] 0 -quiet[1];
-    -quiet[2] quiet[1] 0]
-    B = -quiet[4:6]
-
-    func(x) = norm(A*x-B)
-    sol = optimize(func, [0.0,0.0,0.0])
-    COM = Optim.minimizer(sol) # (x, y, z coordinates of most likely center of mass)
-    M_transform = [1 0 0 0 0 0;
-                0 1 0 0 0 0;
-                0 0 1 0 0 0;
-                0 COM[3] -COM[2] 1 0 0;
-                -COM[3] 0 COM[1] 0 1 0;
-                COM[2] -COM[1] 0 0 0 1]
-    params["mass"] = quiet[3] / 9.81 * 1000 # N to g
-    params["mass_post"] = post[3] / 9.81 * 1000
-    params["COM"] = COM
-    params["M_transform"] = M_transform
-    params["bias"] = bias
-    return(params)
-end
 
 function read_moth_emgft(dpath,moth)
     df = h5_to_df(dpath)
@@ -181,19 +143,59 @@ end
 Stimulus response
 """
 ##
-moth = "2024_06_06"
+moth = "2024_06_20"
 
 df = read_moth_emgft(dpath,moth)
 ##
 freqqs = [0.2000,0.3000,0.5000,0.7000,1.100,1.300,1.700,1.900,2.300,2.900,3.700,4.300,5.300,6.100,7.900,8.900,11.30,13.70,16.70 ,19.90]
 
 ##
+params = Dict{String, Any}()
+
+q = h5_to_df(glob("$(moth)/*quiet.h5",datadir)[1])
+empty = h5_to_df(glob("$(moth)/*empty.h5",datadir)[1])
+ft_names = ["fx","fy","fz","tx","ty","tz"]
+
+post = h5_to_df(glob("$(moth)/*quietpost.h5",datadir)[1])
+
+bias = mean(Matrix(empty[!,ft_names]), dims=1)
+quiet = mean(Matrix(q[!,ft_names]), dims=1)
+
+quiet = transform_FT(transpose(quiet .- bias))
+
+post = mean(Matrix(post[!,ft_names]), dims=1)
+post = transform_FT(transpose(post .- bias))
+
+A = [0 -quiet[3] quiet[2];
+quiet[3] 0 -quiet[1];
+-quiet[2] quiet[1] 0]
+B = -quiet[4:6]
+
+func(x) = norm(A*x-B)
+sol = optimize(func, [0.0,0.0,0.0])
+COM = Optim.minimizer(sol) # (x, y, z coordinates of most likely center of mass)
+M_transform = [1 0 0 0 0 0;
+            0 1 0 0 0 0;
+            0 0 1 0 0 0;
+            0 COM[3] -COM[2] 1 0 0;
+            -COM[3] 0 COM[1] 0 1 0;
+            COM[2] -COM[1] 0 0 0 1]
+params["mass"] = quiet[3] / 9.81 * 1000 # N to g
+params["mass_post"] = post[3] / 9.81 * 1000
+params["COM"] = COM
+params["M_transform"] = M_transform
+params["bias"] = bias
+
+
+
+
+##
 params = remove_bias(moth,datadir)
 
-mass_offset = params["mass"] - 1.5
+# mass_offset = params["mass"] - 1.5
 
-params["mass"] = params["mass"] - mass_offset
-params["mass_post"] = params["mass_post"] - mass_offset
+# params["mass"] = params["mass"] - mass_offset
+# params["mass_post"] = params["mass_post"] - mass_offset
 ##
 
 stim = CSV.read(spath,DataFrame)
@@ -344,7 +346,6 @@ lines!(ax2,freq_range,phase,color=:blue,alpha=0.7)
 
 forc = lines!(ax1,freq_range,magfx ./maximum(magfx),color=:green,alpha=0.7)
 lines!(ax2,freq_range,phasefx,color=:green,alpha=0.7)
-vlines!(ax1,[18,36,54,72,90],color=:red)
 lines!(ax3,freq_range,magvelo ./maximum(magvelo),color=:orange)
 fr = vlines!(ax3,freqqs,color=:grey,linestyle=:dash,alpha=0.3)
 lines!(ax4,freq_range,phasevelo,color=:orange)
@@ -357,3 +358,25 @@ ax4.title= "Motor Velocity Phase"
 Legend(f[:,3],[motor,forc],["Motor","Moth Fx"])
 save("FFT.png",f,px_per_unit=4)
 f
+## Plot the WbFrequency by Epoch 
+d4t = unique(select(df,:wb,:wblen,:trial,:validwb))
+d4t = d4t[d4t.validwb,Not(:validwb)]
+d4t.freq = 1 ./ d4t.wblen
+
+plot = data(d4t)*mapping(:freq,color=:trial)*histogram(bins=75)*visual(alpha=0.7)
+f = draw(plot,axis=(; title="$moth Wb Freq by Epoch"))
+save("wbfreq.png",f,px_per_unit=4)
+
+## Lets Look at phase by Epoch
+
+mu = df[df.rdlm .|| df.ldlm,:]
+
+select!(mu,:wb,:trial,:ldlm,:rdlm,:phase)
+
+new = stack(mu, [:ldlm, :rdlm], variable_name="muscle", value_name="fires")
+new = new[new.fires,Not(:fires)]
+new = new[new.trial .!= "mid",:]
+
+plot = data(new) * mapping(:phase,row=:muscle,color=:trial) * histogram(bins=75)*visual(alpha=0.7) 
+f = draw(plot,figure = (; title="$moth DLM Phase by Epock"))
+save("DLMPhase.png",f,px_per_unit=4)
