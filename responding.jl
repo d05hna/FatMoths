@@ -17,8 +17,8 @@ include("/home/doshna/Documents/PHD/comparativeMPanalysis/functions.jl")
 ##
 datadir = "/home/doshna/Documents/PHD/data/fatties/"
 
-files = glob("*_20/*.h5",datadir)
-ps = glob("*_20/*.csv",datadir)
+files = glob("*_06/*.h5",datadir)
+ps = glob("*_06/*.csv",datadir)
 dpath = files[1]
 spath = ps[1]
 ##
@@ -143,7 +143,7 @@ end
 Stimulus response
 """
 ##
-moth = "2024_06_20"
+moth = "2024_06_06"
 
 df = read_moth_emgft(dpath,moth)
 ##
@@ -281,6 +281,7 @@ function integrate(vec,dt=0.0001)
 end
 ##
 
+##
 Ax = (fpre.fx .- mean(fpre.fx))./params["mass"]
 Vx = integrate(Ax)
 X = integrate(Vx)
@@ -312,13 +313,13 @@ save("kinematics.png",f,px_per_unit=4)
 f
 ##
 dt = 0.0001
-motor_pos = full_pos[1:200000]
+motor_pos = full_pos[400001:end]
 motor_velo = [(motor_pos[i]-motor_pos[i-1])/dt for i in 2:length(motor_pos)]
 pushfirst!(motor_velo,0)
 
 fft_motor = fft(motor_pos)
 fft_velo = fft(motor_velo)
-fft_fx = fft(fpre.fx)
+fft_fx = fft(fpost.fx)
 
 freq_range = fftfreq(length(motor_pos),fs)[2:10000]
 
@@ -356,7 +357,7 @@ ax3.title= "Motor Veloctiy Magnitude"
 ax4.title= "Motor Velocity Phase"
 
 Legend(f[:,3],[motor,forc],["Motor","Moth Fx"])
-save("FFT.png",f,px_per_unit=4)
+# save("FFTPOST.png",f,px_per_unit=4)
 f
 ## Plot the WbFrequency by Epoch 
 d4t = unique(select(df,:wb,:wblen,:trial,:validwb))
@@ -366,7 +367,7 @@ d4t.freq = 1 ./ d4t.wblen
 plot = data(d4t)*mapping(:freq,color=:trial)*histogram(bins=75)*visual(alpha=0.7)
 f = draw(plot,axis=(; title="$moth Wb Freq by Epoch"))
 save("wbfreq.png",f,px_per_unit=4)
-
+f
 ## Lets Look at phase by Epoch
 
 mu = df[df.rdlm .|| df.ldlm,:]
@@ -379,4 +380,5 @@ new = new[new.trial .!= "mid",:]
 
 plot = data(new) * mapping(:phase,row=:muscle,color=:trial) * histogram(bins=75)*visual(alpha=0.7) 
 f = draw(plot,figure = (; title="$moth DLM Phase by Epock"))
-save("DLMPhase.png",f,px_per_unit=4)
+# save("DLMPhase.png",f,px_per_unit=4)
+f
