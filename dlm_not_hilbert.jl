@@ -17,8 +17,8 @@ include("/home/doshna/Documents/PHD/comparativeMPanalysis/functions.jl")
 ##
 datadir = "/home/doshna/Documents/PHD/data/fatties/"
 
-files = glob("*_09/*.h5",datadir)
-ps = glob("*_09/*.csv",datadir)
+files = glob("*_20/*.h5",datadir)
+ps = glob("*_20/*.csv",datadir)
 dpath = files[1]
 # spath = ps[1]
 ##
@@ -165,7 +165,7 @@ end
 Stimulus response
 """
 ##
-moth = "2024_07_09"
+moth = "2024_06_20"
 df,fx = read_moth_emgft(dpath,moth)
 ##
 freqqs = [0.2000,0.3000,0.5000,0.7000,1.100,1.300,1.700,1.900,2.300,2.900,3.700,4.300,5.300,6.100,7.900,8.900,11.30,13.70,16.70 ,19.90]
@@ -340,9 +340,9 @@ dt = 0.0001
 
 # fft_motor = fft(motor_pos)
 # fft_velo = fft(motor_velo)
-fft_fx = fft(fpost.fx)
+# fft_fx = fft(fpost.fx)
 
-freq_range = fftfreq(length(fpost.fx),fs)[2:10000]
+freq_range = fftfreq(length(fx[1:200000]),fs)[2:10000]
 
 # mag= abs.(fft_motor)[2:10000]
 # phase = angle.(fft_motor)[2:10000]
@@ -350,14 +350,14 @@ freq_range = fftfreq(length(fpost.fx),fs)[2:10000]
 # magvelo = abs.(fft_velo)[2:10000]
 # phasevelo = angle.(fft_velo)[2:100x00]
 
-magfx = abs.(fft_fx)[2:10000]
-phasefx = angle.(fft_fx)[2:10000]
+magfx = abs.(fft(fx[400001:end]))[2:10000]
+phasefx = angle.(fft(fx[400001:end]))[2:10000]
 
 ##
 
 f = Figure()
 ax1 = Axis(f[1,1],xscale=log10)
-ax2 = Axis(f[2,1],xscale=log10)
+# ax2 = Axis(f[2,1],xscale=log10)
 
 # ax3 = Axis(f[1,2],xscale=log10)
 # ax4 = Axis(f[2,2],xscale=log10)
@@ -367,12 +367,12 @@ fr = vlines!(ax1,freqqs,color=:grey,linestyle=:dash,alpha=0.3)
 # lines!(ax2,freq_range,phase,color=:blue,alpha=0.7)
 
 forc = lines!(ax1,freq_range,magfx ./maximum(magfx),color=:green,alpha=0.7)
-lines!(ax2,freq_range,phasefx,color=:green,alpha=0.7)
+# scatter!(ax2,freq_range,phasefx,color=:green,alpha=0.7)
 # lines!(ax3,freq_range,magvelo ./maximum(magvelo),color=:orange)
 # fr = vlines!(ax3,freqqs,color=:grey,linestyle=:dash,alpha=0.3)
 # lines!(ax4,freq_range,phasevelo,color=:orange)
 
-ax1.title= "Moth Magnitude"
+ax1.title= "Moth Magnitude After Feeding"
 ax2.title= "Moth Phase"
 # ax3.title= "Motor Veloctiy Magnitude"
 # ax4.title= "Motor Velocity Phase"
