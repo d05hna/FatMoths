@@ -152,3 +152,155 @@ function calculate_gains(signal1, signal2, fs, frequencies)
 
     return gains
 end
+
+function read_ind_ldlm(datadir,moth)
+    ftnames = ["fx","fy","fz","tx","ty","tz"]
+    muscle_names = ["lax","lba","lsa","ldvm","ldlm","rdlm","rdvm","rsa","rba","rax"]
+    
+    files = readdir(joinpath(datadir,moth))
+
+    lb = [-30,0,50]
+    ub = [30,0,60]
+
+    spikes_mat = get_amps_sort(joinpath(datadir,moth))
+    sorted_trials = unique(spikes_mat[:,1])
+
+    ## Get the params
+    params=Dict{Any,Any}()
+    mt = filter(s -> occursin("empty", s), files)[1]
+
+    quiets = filter(s -> occursin("quiet",s),files)
+    qpre = quiets[1]
+    qpost = quiets[end]
+    empty = h5_to_df(joinpath(datadir,moth,mt))
+    bias = mean(Matrix(empty[!,ftnames]),dims=1)
+    quiet = mean(Matrix(h5_to_df(joinpath(datadir,moth,qpre))[!,ftnames]),dims=1)
+    quietpost = mean(Matrix(h5_to_df(joinpath(datadir,moth,qpost))[!,ftnames]),dims=1)
+    ## THE COM STUFF IS NOT WORKING :(
+    quiet = transform_FT(transpose(quiet .- bias))
+    quietpost = transform_FT(transpose(quietpost .- bias))
+
+    A = [0 -quiet[3] quiet[2];
+            quiet[3] 0 -quiet[1];
+            -quiet[2] quiet[1] 0]
+        B = -quiet[4:6]
+        func(x) = norm(A*x-B)
+        sol = optimize(func, lb, ub,  lb .+ (ub .- lb) ./ 2)
+        COM = Optim.minimizer(sol) # (x, y, z coordinates of most likely center of mass)
+        M_transform = [1 0 0 0 0 0;
+                    0 1 0 0 0 0;
+                    0 0 1 0 0 0;
+                    0 COM[3] -COM[2] 1 0 0;
+                    -COM[3] 0 COM[1] 0 1 0;
+                    COM[2] -COM[1] 0 0 0 1]
+        # Put main outputs of moth paramters into single dict
+    params["FT_names"] = ftnames
+    params["EMG_names"] = muscle_names
+    params["fs"] = round(Int, 10000)
+    params["mass"] = quiet[3] / 9.81 * 1000 # N to g
+    params["COM"] = COM
+    params["M_transform"] = M_transform
+    params["bias"] = bias
+    params["mass_post"] = quietpost[3] / 9.81 * 1000
+
+    ##
+
+    maxwb = 0 
+    full_data = DataFrame()
+
+    for t in sorted_trials
+        dpath = joinpath(datadir,moth,"2024_08_01_00$(Int(t)).h5")
+        local df = h5_to_df(dpath)
+        df[!,ftnames] = transform_FT(transpose(Matrix(df[!,ftnames]) .- params["bias"]))
+        
+        fs = 10000
+        
+        z_bandpass = [5, 30]
+        ft_lowpass = 1000
+        
+        cheby_bandpass = digitalfilter(Bandpass(z_bandpass...; fs=fs), Chebyshev1(4, 4))
+        
+        ##
+        
+        select!(df,ftnames)
+        df.time = - range(nrow(df)/fs, step=- 1/fs, length=nrow(df))
+        df.moth .= moth
+        df.trial .= t 
+        df.species .= "Manduca sexta"
+        
+        ##
+        for (mi,m) in enumerate(muscle_names)
+            local column = zeros(Bool, nrow(df))
+            global inds = (spikes_mat[:,1] .== df.trial[1]) .&& 
+                (spikes_mat[:,2] .== mi - 1) .&&
+                (spikes_mat[:,6] .== 1)
+            # Shift from -maxtime:0 to 0:+maxtime
+            spikes_mat[inds,3] = spikes_mat[inds,3].+ abs(df.time[1])
+
+            column[round.(Int, spikes_mat[inds, 3] * params["fs"])] .= 1
+            df[:, m] = column
+        end
+        ## wb by ldlm 
+        
+        df.wb = cumsum(df.ldlm)
+        
+        df.time = round.(df.time,digits=4)
+        
+        phase_wrap_thresh =Dict(
+            "Manduca sexta" => Dict("ax"=>2.0, "ba"=>0.5, "sa"=>0.9, "dvm"=>0.4, "dlm"=>0.8),
+        )   
+        
+        ##
+        df = @pipe df |> 
+            # Column for wingbeat length
+            groupby(_, :wb) |> 
+            transform(_, :wb => (x -> length(x) / fs) => :wblen) |> 
+                #     # Mark wingbeats to remove 
+                #     # (using bool column instead of removing now to allow proper spike unwrapping)
+                #     # Remove wingbeats if too short or too long 
+                groupby(_, :wb) |> 
+                    @transform(_, :validwb = (first(:wblen) >= 1/30) .& (first(:wblen) <= 1/15)) |>
+                    # Remove wingbeats where power muscles don't fire
+                    groupby(_, :wb) |> 
+                        @transform(_, :validwb = ifelse.(
+                        any(:ldlm) .&& any(:rdlm) .&& :validwb, 
+                    true, false)) 
+                #     # Go ahead and actually remove wingbeats of length 1 because that breaks a lot
+                #     groupby(_, :wb) |> 
+                #     combine(_, x -> nrow(x) == 1 ? DataFrame() : x)
+                # # If there's no valid wingbeats in this trial, skip the heavier computations and move on
+        df = @pipe df |> 
+            # Make phase column
+            groupby(_, :wb) |>
+            transform(_, :wb => (x -> LinRange(0, 1, length(x))) => :phase) |> 
+            # Make time from start of wb column
+            rename!(_, :time => :time_abs) |> 
+            groupby(_, :wb) |> 
+            transform(_, :time_abs => (x -> LinRange(0, length(x)/fs, length(x))) => :time)  |>
+            groupby(_, :wb) |> 
+                transform(_, Symbol.(ftnames) .=> mean .=> Symbol.(ftnames)) |> 
+                # Keep only where spikes happened to save on memory
+                @subset(_, :lax .|| :lba .|| :lsa .|| :ldvm .|| :ldlm .|| :rdlm .|| :rdvm .|| :rsa .|| :rba .|| :rax) |> 
+                # Pivot spike time columns to longer form
+                stack(_, Symbol.(muscle_names)) |>
+                rename!(_, :variable => :muscle, :value => :spike) |> 
+                @subset(_, :spike .== 1) |> 
+                # Remove columns no longer useful now with just spikes
+                select!(_, Not(:spike)) |> 
+                # Perform shifting of spikes, remove any that couldn't be matched to a wingbeat
+                transform!(_, [:moth, :species, :muscle, :wb, :wblen, :time, :phase, :validwb] => unwrap_spikes_to_next => [:wb, :wblen, :time, :phase]) |> 
+                # Remove invalid wingbeats
+                @subset(_, :validwb) |> 
+                select!(_, Not(:validwb)) |> 
+                @subset(_, (!).(isnan.(:time))) |> 
+                # Column for wingbeat frequency
+                groupby(_, :wb) |> 
+                @transform(_, :wbfreq = 1 ./ :wblen)
+        df.wb = df.wb .+ maxwb
+
+
+        full_data = vcat(full_data,df)
+        maxwb = maximum(full_data.wb)
+    end
+    return(full_data)
+end
