@@ -7,7 +7,7 @@ function h5_to_df(path)
         column_names = vec(read(file, "names"))
         
         # Create a DataFrame using the matrix and column names
-        df = DataFrame(matrix, column_names)
+        df = DataFrame(matrix, column_names,makeunique=true)
 
         mapss = Dict(
             "ch1" => "fx",
