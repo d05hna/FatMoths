@@ -209,7 +209,7 @@ function read_ind_ldlm(datadir,moth)
     full_data = DataFrame()
 
     for t in sorted_trials
-        dpath = joinpath(datadir,moth,"2024_08_01_00$(Int(t)).h5")
+        dpath = joinpath(datadir,moth,moth*"_00$(Int(t)).h5")
         local df = h5_to_df(dpath)
         df[!,ftnames] = transform_FT(transpose(Matrix(df[!,ftnames]) .- params["bias"]))
         
