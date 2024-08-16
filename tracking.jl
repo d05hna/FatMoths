@@ -18,7 +18,7 @@ include("me_functions.jl")
 ##
 datadir = "/home/doshna/Documents/PHD/data/fatties/"
 
-files = glob("*8_01/*.h5",datadir)
+files = glob("*8_14/*.h5",datadir)
 
 ##
 fs = 10000
@@ -96,7 +96,7 @@ ax2.title = "Moth Pre"
 ax3.title = "Flower Post"
 ax4.title = "Moth Post"
 
-save("080124Mothfft.png",f,px_per_unit=4)
+# save("Moth_08_01_24/080124Mothfft.png",f,px_per_unit=4)
 f
 ##
 
@@ -112,4 +112,8 @@ pre = scatter!(ax,freqqs,gains_pre)
 post = scatter!(ax,freqqs,gains_post)
 
 Legend(g[1,2],[pre,post],["Pre","Post"])
+ax.title="Sensorimotor Gain"
+ax.ylabel = "Log10 newtons/pixels?"
+ax.xlabel = "Frequency"
+save("Moth_08_14_24/gains.png",g,px_per_unit=4)
 g

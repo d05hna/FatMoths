@@ -153,7 +153,7 @@ function calculate_gains(signal1, signal2, fs, frequencies)
     return gains
 end
 
-function read_ind_ldlm(datadir,moth)
+function read_ind(datadir,moth,wb_method)
     ftnames = ["fx","fy","fz","tx","ty","tz"]
     muscle_names = ["lax","lba","lsa","ldvm","ldlm","rdlm","rdvm","rsa","rba","rax"]
     
@@ -240,9 +240,20 @@ function read_ind_ldlm(datadir,moth)
             column[round.(Int, spikes_mat[inds, 3] * params["fs"])] .= 1
             df[:, m] = column
         end
-        ## wb by ldlm 
-        
-        df.wb = cumsum(df.ldlm)
+        ## wb by mthos
+        if wb_method == "rdlm"
+            df.wb = cumsum(df.rdlm)
+        elseif wb_method == "ldlm"
+            df.wb = cumsum(df.ldlm)
+        elseif wb_method == "hilbert"
+            df.wb = @pipe filtfilt(cheby_bandpass, df.fz) |>
+            hilbert .|>
+            angle .|> 
+            sign |>
+            (x -> pushfirst!(diff(x), 0)) |> # diff reduces len by 1, pad zero at beginning
+            cumsum(_ .> 0.1)
+        end
+    
         
         df.time = round.(df.time,digits=4)
         
@@ -304,3 +315,5 @@ function read_ind_ldlm(datadir,moth)
     end
     return(full_data)
 end
+##
+
