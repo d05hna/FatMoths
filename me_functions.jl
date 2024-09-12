@@ -164,7 +164,6 @@ function read_ind(datadir,moth,wb_method)
 
     spikes_mat = get_amps_sort(joinpath(datadir,moth))
     sorted_trials = unique(spikes_mat[:,1])
-
     ## Get the params
     params=Dict{Any,Any}()
     mt = filter(s -> occursin("empty", s), files)[1]
@@ -240,7 +239,7 @@ function read_ind(datadir,moth,wb_method)
             column[round.(Int, spikes_mat[inds, 3] * params["fs"])] .= 1
             df[:, m] = column
         end
-        ## wb by mthos
+        ## wb by methods
         if wb_method == "rdlm"
             df.wb = cumsum(df.rdlm)
         elseif wb_method == "ldlm"
@@ -256,7 +255,6 @@ function read_ind(datadir,moth,wb_method)
     
         
         df.time = round.(df.time,digits=4)
-        
         phase_wrap_thresh =Dict(
             "Manduca sexta" => Dict("ax"=>2.0, "ba"=>0.5, "sa"=>0.9, "dvm"=>0.4, "dlm"=>0.8),
         )   
@@ -275,10 +273,9 @@ function read_ind(datadir,moth,wb_method)
                     groupby(_, :wb) |> 
                         @transform(_, :validwb = ifelse.(
                         any(:ldlm) .&& any(:rdlm) .&& :validwb, 
-                    true, false)) 
-                #     # Go ahead and actually remove wingbeats of length 1 because that breaks a lot
-                #     groupby(_, :wb) |> 
-                #     combine(_, x -> nrow(x) == 1 ? DataFrame() : x)
+                    true, false))|>
+            groupby(_, :wb) |> 
+                    combine(_, x -> nrow(x) == 1 ? DataFrame() : x)
                 # # If there's no valid wingbeats in this trial, skip the heavier computations and move on
         df = @pipe df |> 
             # Make phase column

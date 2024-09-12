@@ -19,64 +19,62 @@ include("me_functions.jl")
 datadir = "/home/doshna/Documents/PHD/data/fatties/"
 moth = "2024_08_16"
 
-function freq_response(datadir,moth)
-    files = glob("$(moth)/*.h5",datadir)
+files = glob("$(moth)/*.h5",datadir)
 
-    ##
-    fs = 10000
-    ftnames = ["fx","fy","fz","tx","ty","tz"]
+##
+fs = 10000
+ftnames = ["fx","fy","fz","tx","ty","tz"]
 
-    df = h5_to_df(files[1])
+df = h5_to_df(files[1])
 
-    true_ft = DataFrame(transform_FT(transpose(Matrix(df[!,ftnames]))),ftnames)
+true_ft = DataFrame(transform_FT(transpose(Matrix(df[!,ftnames]))),ftnames)
 
-    df[!,ftnames] = true_ft
-    idx = findall(df.camtrig .> 2)[1]
+df[!,ftnames] = true_ft
+idx = findall(df.camtrig .> 2)[1]
 
-    fx = df.fx[idx:idx+ fs*20-1]
-    ##
+fx = df.fx[idx:idx+ fs*20-1]
+##
 
-    stims = glob("*/*DLT*/*",datadir)
-    s = stims[4]
-    stim = CSV.read(s,DataFrame)
+stims = glob("*/*DLT*/*",datadir)
+s = stims[4]
+stim = CSV.read(s,DataFrame)
 
-    stim_20 = convert(Vector{Float64},stim.filtered[1:6000])
-    ##
-    fftstim_pre = fft(stim_20)[2:3000]
-    freq_range_pre = fftfreq(length(stim_20),300)[2:3000]
-    mag_stim_pre = abs.(fftstim_pre)
+stim_20 = convert(Vector{Float64},stim.filtered[1:6000])
+##
+fftstim_pre = fft(stim_20)[2:3000]
+freq_range_pre = fftfreq(length(stim_20),300)[2:3000]
+mag_stim_pre = abs.(fftstim_pre)
 
-    freqqs = [0.2000,0.3000,0.5000,0.7000,1.100,1.300,1.700,1.900,2.300,2.900,3.700,4.300,5.300,6.100,7.900,8.900,11.30,13.70,16.70 ,19.90]
+freqqs = [0.2000,0.3000,0.5000,0.7000,1.100,1.300,1.700,1.900,2.300,2.900,3.700,4.300,5.300,6.100,7.900,8.900,11.30,13.70,16.70 ,19.90]
 
-    fftfx_pre = fft(fx)[2:100000]
-    fr_fx_pre = fftfreq(length(fx),10000)[2:100000]
-    mag_fx_pre = abs.(fftfx_pre)
-    ##
-    dfpost = h5_to_df(files[4])
+fftfx_pre = fft(fx)[2:100000]
+fr_fx_pre = fftfreq(length(fx),10000)[2:100000]
+mag_fx_pre = abs.(fftfx_pre)
+##
+dfpost = h5_to_df(files[4])
 
-    true_ftpost = DataFrame(transform_FT(transpose(Matrix(df[!,ftnames]))),ftnames)
+true_ftpost = DataFrame(transform_FT(transpose(Matrix(df[!,ftnames]))),ftnames)
 
-    df[!,ftnames] = true_ftpost
-    idx = findall(df.camtrig .> 2)[1]
+df[!,ftnames] = true_ftpost
+idx = findall(df.camtrig .> 2)[1]
 
-    fxpost = df.fx[idx:idx+ fs*20-1]
-    ##
-    s = stims[end]
-    stimpost = CSV.read(s,DataFrame)
+fxpost = df.fx[idx:idx+ fs*20-1]
+##
+s = stims[end]
+stimpost = CSV.read(s,DataFrame)
 
-    stim_20post = convert(Vector{Float64},stim.filtered[1:6000])
-    ##
-    fftstimpost = fft(stim_20post)[2:3000]
-    freq_range_post = fftfreq(length(stim_20),300)[2:3000]
-    mag_stim_post = abs.(fftstimpost)
+stim_20post = convert(Vector{Float64},stim.filtered[1:6000])
+##
+fftstimpost = fft(stim_20post)[2:3000]
+freq_range_post = fftfreq(length(stim_20),300)[2:3000]
+mag_stim_post = abs.(fftstimpost)
 
-    freqqs_post = [0.2000,0.3000,0.5000,0.7000,1.100,1.300,1.700,1.900,2.300,2.900,3.700,4.300,5.300,6.100,7.900,8.900,11.30,13.70,16.70 ,19.90]
+freqqs_post = [0.2000,0.3000,0.5000,0.7000,1.100,1.300,1.700,1.900,2.300,2.900,3.700,4.300,5.300,6.100,7.900,8.900,11.30,13.70,16.70 ,19.90]
 
-    fftfx_post = fft(fxpost)[2:100000]
-    fr_fx_post = fftfreq(length(fxpost),10000)[2:100000]
-    mag_fx_post = abs.(fftfx_post)
+fftfx_post = fft(fxpost)[2:100000]
+fr_fx_post = fftfreq(length(fxpost),10000)[2:100000]
+mag_fx_post = abs.(fftfx_post)
 
-end
 ##
 f = Figure(figsize=(6,6))
 ax = Axis(f[1,1],xscale=log10)
