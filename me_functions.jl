@@ -159,8 +159,8 @@ function read_ind(datadir,moth,wb_method)
     
     files = readdir(joinpath(datadir,moth))
 
-    lb = [-30,0,50]
-    ub = [30,0,60]
+    lb = [-10,0,50]
+    ub = [10,0,60]
 
     spikes_mat = get_amps_sort(joinpath(datadir,moth))
     sorted_trials = unique(spikes_mat[:,1])
@@ -310,7 +310,20 @@ function read_ind(datadir,moth,wb_method)
         full_data = vcat(full_data,df)
         maxwb = maximum(full_data.wb)
     end
-    return(full_data)
+    return(full_data,params)
 end
 ##
 
+function get_side_slips(datadir,moth,params)
+    ftnames = ["fx","fy","fz","tx","ty","tz"]
+    files = glob("*.h5",joinpath(datadir,moth))
+    tris =[path for path in files if occursin("00", path)]
+    path_pre = tris[1]
+    path_post = tris[end]
+
+    pre_fx = transform_FT(transpose(Matrix(h5_to_df(path_pre)[!,ftnames]) .- params["bias"]))[:,1]
+    post_fx = transform_FT(transpose(Matrix(h5_to_df(path_post)[!,ftnames]) .- params["bias"]))[:,1]
+
+    return(pre_fx,post_fx)
+end
+##
