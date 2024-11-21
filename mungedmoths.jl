@@ -97,6 +97,26 @@ for moth in moths
         push!(peaks,podic,cols=:union)
     end
 end
+peaks.fz = peaks.fz .* -1 
+##
+##
+g=9.81
+ms = Dict(
+    "2024_11_01" => Dict("pre"=>1.912,"post"=>2.075),
+    "2024_11_04" => Dict("pre"=>2.149,"post"=>2.289),
+    "2024_11_05" => Dict("pre"=>2.190,"post"=>2.592),
+    "2024_11_07" => Dict("pre"=>1.801,"post"=>1.882),
+    "2024_11_08" => Dict("pre"=>2.047,"post"=>2.369),
+    "2024_11_11" => Dict("pre"=>1.810,"post"=>2.090),
+    "2024_11_20" => Dict("pre"=>1.512,"post"=>1.784)
+)
+##
+function normalize_fz(row, ms, g)
+    return row.fz / ((ms[row.moth][row.trial]/1000) * g)
+end
+
+peaks.norm_fz = map(row -> normalize_fz(row, ms, g), eachrow(peaks))
+
 ##
 grouped = groupby(peaks,[:moth,:freq])
 
@@ -104,8 +124,8 @@ changes = combine(grouped) do gdf
     pre_vals = filter(r -> r.trial == "pre",gdf)
     post_vals = filter(r -> r.trial == "post",gdf)
     (
-        fz_change =  (mean(post_vals.fz) - mean(pre_vals.fz)) / abs(mean(pre_vals.fz)) * 100,
-        gain_change = (mean(post_vals.peak) - mean(pre_vals.peak))/abs(mean(pre_vals.peak)) * 100
+        fz_change =  (mean(post_vals.norm_fz) - mean(pre_vals.fz)) / abs(mean(pre_vals.norm_fz)),
+        gain_change = (mean(post_vals.peak) - mean(pre_vals.peak))/abs(mean(pre_vals.peak))*100
     )
 end
 ##
@@ -116,28 +136,14 @@ mean_changes = combine(groupby(changes, :moth),
    :fz_change => mean => :mean_fz,
    :gain_change => mean => :mean_gain
 )
-##
 
-mean_changes.mean_fz = mean_changes.mean_fz .* -1
-##
-true_fed_pct = Dict(
-    "2024_11_01" => 9.3,
-    "2024_11_04" => 6.94,
-    "2024_11_05" => 18.38,
-    "2024_11_07" => 4.48,
-    "2024_11_08" => 17.98,
-    "2024_11_11" => 15.47
-)
 ##
 fedf = DataFrame(moth = collect(keys(true_fed_pct)), fed = collect(values(true_fed_pct)))
 leftjoin!(mean_changes,fedf,on=:moth)
 mean_changes.fed = convert(Vector{Float64},mean_changes.fed)
 ##
-f = Figure()
-ax = Axis(f[1,1],xlabel= "Change in Average Wing Beat Z Force (%)",ylabel="Average Increase in Gain (%)")
-gchange=scatter!(ax,mean_changes.mean_fz,mean_changes.mean_gain,markersize=20,color=:coral)
-mchange=scatter!(ax,mean_changes.mean_fz,mean_changes.fed,color=:green,markersize=15)
-Legend(f[1,2],[gchange,mchange],["True Gain Change","Explained by Mass Alone"])
+plot = data(mean_changes)*mapping(:mean_fz => "Relative Change in FZ",:mean_gain => "Average Change in Gain (%)",color=:moth)*visual(markersize=15)
+f = draw(plot,axis=(;))
 save("FatMothSet1/fzvsgainchangevsmass.png",f,px_per_unit=4)
 f
 ##
@@ -145,7 +151,7 @@ f
 df = select(all_data,:moth,:wb,:trial,:muscle,:phase)
 full_data = get_big_data(df)
 ##
-save("highdimensionbigdata.csv",full_data)
+save("/home/doshna/Documents/PHD/FatMothMLProject/highdimensionbigdata.csv",full_data)
 ##
 using UMAP 
 ##
