@@ -30,7 +30,7 @@ set_theme!(theme)
 ##
 global ftnames = ["fx","fy","fz","tx","ty","tz"]
 datadir = "/home/doshna/Documents/PHD/data/fatties"
-moth = "2024_11_20"
+moth = "2024_08_16"
 fs = 1e4
 ## get data and params
 
@@ -46,8 +46,8 @@ Then Adjust the Following Variables accordingly
 Also if the pre and post trials are not 0 and 2, then change those too!!
 """
 ## Filter the Fx data and the Muscle Data To only care about the Portions that are being used in the tracking analysis
-start_pre = Int(1e5)
-start_post = Int(1.5e5)
+start_pre = Int(1.2e5)
+start_post = Int(1.2e5)
 
 pre10 = fx_pre[start_pre:Int(start_pre+1e5-1)]
 post10 = fx_post[start_post:Int(start_post+1e5-1)]

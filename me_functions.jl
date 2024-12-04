@@ -462,7 +462,7 @@ function muscle_count(group,muscle_names)
     return counts
 end
 ##
-function get_big_data(df) 
+function get_big_data(df,torp) 
     """
     Takes in a df with moth wb trial muscle and phase and outputs the spike counts and phases for every possible spike 
     The max number of spikes you see for a given muscle is the number of collumns that muscle will get for phase
@@ -499,42 +499,84 @@ function get_big_data(df)
         max_counts[mus] = maximum(count_df[!,mus*"_count"])
     end
     ## Get the phase data, missing 
-    pivoted_data = []
-    for g in grouped 
-        moth,wb,trial = g[1,:moth],g[1,:wb],g[1,:trial]
-        phases = Dict(mus => [] for mus in muscle_names)
+    if torp == "phase"
+        pivoted_data = []
+        for g in grouped 
+            moth,wb,trial = g[1,:moth],g[1,:wb],g[1,:trial]
+            phases = Dict(mus => [] for mus in muscle_names)
 
-        for row in eachrow(g)
-            mus = row.muscle
-            phase = row.phase
-            push!(phases[mus],phase)
-        end
-
-        for mus in muscle_names
-            phases[mus] = sort(phases[mus])
-            while length(phases[mus]) < max_counts[mus]
-                push!(phases[mus],missing)
+            for row in eachrow(g)
+                mus = row.muscle
+                phase = row.phase
+                push!(phases[mus],phase)
             end
+
+            for mus in muscle_names
+                phases[mus] = sort(phases[mus])
+                while length(phases[mus]) < max_counts[mus]
+                    push!(phases[mus],missing)
+                end
+            end
+            row = [moth,wb,trial]
+            for mus in muscle_names 
+                for i in 1:max_counts[mus]
+                    push!(row, phases[mus][i])
+                end
+            end
+            push!(pivoted_data,row)
         end
-        row = [moth,wb,trial]
+
+        cols = [:moth,:wb,:trial]
         for mus in muscle_names 
             for i in 1:max_counts[mus]
-                push!(row, phases[mus][i])
+                push!(cols,Symbol("$(mus)$(i)"))
             end
         end
-        push!(pivoted_data,row)
-    end
 
-    cols = [:moth,:wb,:trial]
-    for mus in muscle_names 
-        for i in 1:max_counts[mus]
-            push!(cols,Symbol("$(mus)$(i)"))
+        phasedf = DataFrame(permutedims(hcat(pivoted_data...)),cols)
+    end
+    ##
+    if torp == "time"
+        pivoted_data = []
+        for g in grouped 
+            moth,wb,trial = g[1,:moth],g[1,:wb],g[1,:trial]
+            times = Dict(mus => [] for mus in muscle_names)
+
+            for row in eachrow(g)
+                mus = row.muscle
+                time = row.time
+                push!(times[mus],time)
+            end
+
+            for mus in muscle_names
+                times[mus] = sort(times[mus])
+                while length(times[mus]) < max_counts[mus]
+                    push!(times[mus],missing)
+                end
+            end
+            row = [moth,wb,trial]
+            for mus in muscle_names 
+                for i in 1:max_counts[mus]
+                    push!(row, times[mus][i])
+                end
+            end
+            push!(pivoted_data,row)
         end
-    end
 
-    phasedf = DataFrame(permutedims(hcat(pivoted_data...)),cols)
+        cols = [:moth,:wb,:trial]
+        for mus in muscle_names 
+            for i in 1:max_counts[mus]
+                push!(cols,Symbol("$(mus)$(i)"))
+            end
+        end
+
+        phasedf = DataFrame(permutedims(hcat(pivoted_data...)),cols)
+    end
     ##
 
     full_data = leftjoin(count_df,phasedf,on=[:wb,:trial,:moth])
+    fzs = unique(select(df, [:wb, :trial, :moth, :fz,:wbfreq]), [:wb, :trial, :moth])
+    leftjoin!(full_data,fzs,on=[:wb,:trial,:moth])
+    select!(full_data,:moth,:wb,:trial,:fz,:wbfreq,:)
     return(full_data)
 end
