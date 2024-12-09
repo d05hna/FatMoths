@@ -210,7 +210,7 @@ function read_ind(datadir,moth,wb_method)
         quiets = filter(s -> occursin("quiet",s),files)
         qpre = quiets[1]
         qpost = quiets[end]
-        empty = h5_to_df(joinpath(datadir,moth,mt))
+        empty = h5_to_df(joinpath(datadir,moth,mt))[Int(end-1e5+1):end,:]
         bias = mean(Matrix(empty[!,ftnames]),dims=1)
         quiet = mean(Matrix(h5_to_df(joinpath(datadir,moth,qpre))[!,ftnames]),dims=1)
         quietpost = mean(Matrix(h5_to_df(joinpath(datadir,moth,qpost))[!,ftnames]),dims=1)
@@ -246,7 +246,7 @@ function read_ind(datadir,moth,wb_method)
         maxwb = 0 
         full_data = DataFrame()
         for t in sorted_trials
-            dpath = joinpath(datadir,moth,moth*"_00$(Int(t)).h5")
+            dpath = joinpath(datadir,moth,moth[1:10]*"_00$(Int(t)).h5")
             local df = h5_to_df(dpath)
             df[!,ftnames] = transform_FT(transpose(Matrix(df[!,ftnames]) .- params["bias"]),params["M_transform"])
             
@@ -338,9 +338,9 @@ function read_ind(datadir,moth,wb_method)
                     DataFramesMeta.transform!(_, [:moth, :species, :muscle, :wb, :wblen, :time, :phase, :validwb] => unwrap_spikes_to_next => [:wb, :wblen, :time, :phase]) |> 
                     DataFramesMeta.transform(_, 
                     Symbol.(vcat(ftnames, "wb", "validwb")) => 
-                    # compute_PCA_time => 
-                    compute_PCA_phase => 
-                    Symbol.([f * "_pc" * string(s) for s in 1:3 for f in ftnames]))
+                    #compute_PCA_time => 
+                        compute_PCA_phase => 
+                            Symbol.([f * "_pc" * string(s) for s in 1:3 for f in ftnames]))
             df = @pipe df |>
                 # Remove invalid wingbeats
                 @subset(_, :validwb) |> 
