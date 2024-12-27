@@ -30,7 +30,7 @@ set_theme!(theme)
 ##
 global ftnames = ["fx","fy","fz","tx","ty","tz"]
 datadir = "/home/doshna/Documents/PHD/data/fatties"
-moth = "2024_11_01"
+moth = "2024_11_05"
 fs = 1e4
 ## get data and params
 
@@ -38,7 +38,7 @@ df,params = read_ind(datadir,moth,"hilbert")
 df.time_abs = df.time_abs .+ 30
 
 ## get the side slipping forces out 
-fx_pre,fx_post = get_side_slips(datadir,moth,params,[2,4])
+fx_pre,fx_post = get_side_slips(datadir,moth,params,[1,4])
 ##
 """
 STOP RIGHT HERE!!! LOOK Between Videos and Force Traces and Get the Best 10 Seconds of Tracking for each!!
@@ -46,13 +46,13 @@ Then Adjust the Following Variables accordingly
 Also if the pre and post trials are not 0 and 2, then change those too!!
 """
 ## Filter the Fx data and the Muscle Data To only care about the Portions that are being used in the tracking analysis
-start_pre = Int(1.5e5)
-start_post = Int(1)
+start_pre = Int(1)
+start_post = Int(1e5)
 
 pre10 = fx_pre[start_pre:Int(start_pre+1e5-1)]
 post10 = fx_post[start_post:Int(start_post+1e5-1)]
 
-tris = [1.,3.]
+tris = [0.,3.]
 predf = df[df.trial.==tris[1],:]
 predf = predf[predf.time_abs .> start_pre /fs .&& predf.time_abs .< (start_pre-1+1e5)/fs,:]
 predf.trial .= "pre"
@@ -119,14 +119,18 @@ Legend(fig[:,:3],[pre,post],["Before Feeding","After Feeding"])
 fig
 ## save away
 @load "fat_moths_set_1.jld" allmoths
+if moth in collect(keys(allmoths))
+    allmoths[moth]["data"] = df_to_use
+    allmoths[moth]["fxpre"] = pre10
+    allmoths[moth]["fxpost"] = post10
+else
+    d = Dict(
+        "data" => df_to_use,
+        "fxpre" => pre10,
+        "fxpost" => post10
+    )
 
-d = Dict(
-    "data" => df_to_use,
-    "fxpre" => pre10,
-    "fxpost" => post10
-)
-
-allmoths[moth] = d 
-
+    allmoths[moth] = d 
+end
 @save "fat_moths_set_1.jld" allmoths
 

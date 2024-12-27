@@ -20,16 +20,16 @@ using GLM
 using HypothesisTests
 include("/home/doshna/Documents/PHD/comparativeMPanalysis/functions.jl")
 include("me_functions.jl")
-# GLMakie.activate!()
-# theme = theme_dark()
-# theme.textcolor=:white
-# theme.ytickfontcolor=:white
-# theme.fontsize= 16
-# theme.gridcolor=:white
-# theme.gridalpga=1
+GLMakie.activate!()
+theme = theme_dark()
+theme.textcolor=:white
+theme.ytickfontcolor=:white
+theme.fontsize= 16
+theme.gridcolor=:white
+theme.gridalpga=1
 # theme.palette = (color = [:turquoise,:coral],)
-# # theme.palette = (color = paired_10_colors)
-# set_theme!(theme)
+# theme.palette = (color = paired_10_colors)
+set_theme!(theme)
 ##
 @load "fat_moths_set_1.jld" allmoths
 fs = 1e4 
@@ -39,7 +39,7 @@ figs = false
 ##
 moths = collect(keys(allmoths))
 all_data = DataFrame()
-cold_moths = ["2024_08_01","2024_06_06","2024_06_20","2024_06_24","2024_12_04_2"]
+cold_moths = ["2024_08_01","2024_06_06","2024_06_20","2024_06_24","2024_12_04_2","2024_12_03"]
 moths = [m for m in moths if !in(m,cold_moths)]
 ##
 for moth in moths 
@@ -148,7 +148,10 @@ mean_changes = combine(groupby(changes, :moth),
    :fz_change => mean => :mean_fz,
    :gain_change => mean => :mean_gain
 )
-
+mean_changes.mass .= 0.
+for row in eachrow(mean_changes)
+    row.mass = ms[row.moth]["post"] - ms[row.moth]["pre"] 
+end
 ##
 
 ##
@@ -207,14 +210,18 @@ ax = Axis(fig[1,1],
     ylabel = "Increase in Sensorimotor Gain (%)",
     xticklabelsize=20,
     yticklabelsize=20,
+    limits = (-2,2,-30,100)
 )
 
+y_fake = range(minimum(y),maximum(y),length=100)
+# lines!(ax,x_new,y_fake,color=:forestgreen,linewidth=8)
 scatter!(ax,x,y,color=:royalblue3,markersize=20,alpha=0.7)
 lines!(ax,x_new,convert(Vector{Float64},pred.prediction),
     linewidth=5,color=:lightskyblue3)
 band!(ax, x_new, convert(Vector{Float64},pred.lower), convert(Vector{Float64},pred.upper),
     color = (:lightskyblue3, 0.2)
 )
+hlines!(ax,75,color=:grey,linewidth=8)
 
 text!(ax, 
     "R² = $(round(r, digits=3))",
@@ -222,7 +229,7 @@ text!(ax,
     fontsize = 25
 )
 
-save("SICBFigs/GainFZ.png",fig,px_per_unit=4)
+save("SICBFigs/GainFz.png",fig,px_per_unit=4)
 
 display(fig)
 ## Changes in Wbfrequency 
