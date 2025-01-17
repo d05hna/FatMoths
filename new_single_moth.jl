@@ -16,6 +16,7 @@ using AlgebraOfGraphics
 using JLD2
 using MultivariateStats
 include("/home/doshna/Documents/PHD/comparativeMPanalysis/functions.jl")
+include("/home/doshna/Documents/PHD/comparativeMPanalysis/readAndPreprocessFunctions.jl")
 include("me_functions.jl")
 GLMakie.activate!()
 theme = theme_dark()
@@ -28,17 +29,53 @@ theme.palette = (color = [:turquoise,:coral],)
 # theme.palette = (color = paired_10_colors)
 set_theme!(theme)
 ##
-global ftnames = ["fx","fy","fz","tx","ty","tz"]
-datadir = "/home/doshna/Documents/PHD/data/fatties"
-moth = "2024_11_08"
-fs = 1e4
-## get data and params
+data_dir = joinpath("/home", "doshna", "Documents", "PHD", "data", "fatties")
+# Controls
+fs = 10000
+emg_highpass = 70
+ft_lowpass = 1000
+z_bandpass = [10, 50]
+wb_len_thresh = Dict(
+                    "Manduca sexta" => [1/30, 1/15]) 
+phase_wrap_thresh = Dict(
+    "Manduca sexta"  => Dict(
+        "2024_11_01" => Dict("ax"=>0.9, "ba"=>2.0, "sa"=>0.7, "dvm"=>0.41, "dlm"=>0.7),
+        "2024_11_04" => Dict("ax"=>0.9, "ba"=>2.0, "sa"=>0.7, "dvm"=>0.41, "dlm"=>0.7),
+        "2024_11_05" => Dict("ax"=>0.9, "ba"=>2.0, "sa"=>0.7, "dvm"=>0.41, "dlm"=>0.7),
+        "2024_11_07" => Dict("ax"=>0.9, "ba"=>2.0, "sa"=>0.7, "dvm"=>0.41, "dlm"=>0.7),
+        "2024_11_08" => Dict("ax"=>0.9, "ba"=>2.0, "sa"=>0.7, "dvm"=>0.41, "dlm"=>0.7),
+        "2024_11_11" => Dict("ax"=>0.9, "ba"=>2.0, "sa"=>0.7, "dvm"=>0.41, "dlm"=>0.7),
+        "2024_11_20" => Dict("ax"=>0.9, "ba"=>2.0, "sa"=>0.7, "dvm"=>0.41, "dlm"=>0.7),
+        "2025_01_14" => Dict("ax"=>0.9, "ba"=>2.0, "sa"=>0.7, "dvm"=>0.41, "dlm"=>0.7)
+        )
+)
+cheby_bandpass = digitalfilter(Bandpass(z_bandpass...; fs=fs), Chebyshev1(4, 4))
 
-df,params = read_ind(datadir,moth,"hilbert")
-df.time_abs = df.time_abs .+ 30
+muscle_names = ["lax","lba","lsa","ldvm","ldlm",
+"rdlm","rdvm","rsa","rba","rax"]
+ft_names = ["fx","fy","fz","tx","ty","tz"]
 
-## get the side slipping forces out 
-fx_pre,fx_post = get_side_slips(datadir,moth,params,[2,4])
+##
+moth = "2025_01_14"
+##
+df = DataFrame()
+params = Dict()
+read_individual!(joinpath(data_dir,moth),df,params,wb_len_thresh,phase_wrap_thresh;cheby_bandpass=cheby_bandpass)
+df.time_abs .+= 30
+##
+gtp = Dict(
+    ## Moth => Trial 1, Trial 2, Start 1, Start 2, Trials are 1 indexed
+    "2024_11_01" => [2,4,1.5e5,1],
+    "2024_11_04" => [2,4,1.5e5,1],
+    "2024_11_05" => [1,4,1,1e5],
+    "2024_11_07" => [1,3,1e4,1],
+    "2024_11_08" => [2,4,1e5,1],
+    "2024_11_11" => [1,2,1,1],
+    "2024_11_20" => [1,3,1e5,1.5e5],
+    "2025_01_14" => [1,2,1,1.5e5],
+)
+##
+fx_pre,fx_post = get_side_slips(data_dir,moth,params[moth],[Int(gtp[moth][1]),Int(gtp[moth][2])])
 ##
 """
 STOP RIGHT HERE!!! LOOK Between Videos and Force Traces and Get the Best 10 Seconds of Tracking for each!!
@@ -46,13 +83,13 @@ Then Adjust the Following Variables accordingly
 Also if the pre and post trials are not 0 and 2, then change those too!!
 """
 ## Filter the Fx data and the Muscle Data To only care about the Portions that are being used in the tracking analysis
-start_pre = Int(1e5)
-start_post = Int(1)
+start_pre = Int(gtp[moth][3])
+start_post = Int(gtp[moth][4])
 
 pre10 = fx_pre[start_pre:Int(start_pre+1e5-1)]
 post10 = fx_post[start_post:Int(start_post+1e5-1)]
 
-tris = [1.,3.]
+tris = convert(Vector{Int},[gtp[moth][1],gtp[moth][2]] .- 1)
 predf = df[df.trial.==tris[1],:]
 predf = predf[predf.time_abs .> start_pre /fs .&& predf.time_abs .< (start_pre-1+1e5)/fs,:]
 predf.trial .= "pre"
@@ -118,7 +155,7 @@ vlines!(ax3,freqqs,color=:grey,linestyle=:dash,alpha=0.3)
 Legend(fig[:,:3],[pre,post],["Before Feeding","After Feeding"])
 fig
 ## save away
-@load "fat_moths_set_1.jld" allmoths
+@load "/home/doshna/Documents/PHD/FatMoths/fat_moths_set_1.jld" allmoths
 if moth in collect(keys(allmoths))
     allmoths[moth]["data"] = df_to_use
     allmoths[moth]["fxpre"] = pre10

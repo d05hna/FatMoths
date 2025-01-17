@@ -200,6 +200,7 @@ y = mean_changes.mean_gain
 
 regr = lm(@formula(mean_gain~mean_fz),mean_changes)
 r = r2(regr)
+fte = GLM.ftest(regr.model)
 
 x_new = range(minimum(x),maximum(x),length=100)
 pred = predict(regr, DataFrame(mean_fz = x_new),interval = :confidence, level = 0.95)
@@ -228,7 +229,11 @@ text!(ax,
     position = (.7,-25),
     fontsize = 25
 )
-
+text!(ax, 
+    "p = $(round(fte.pval, digits=3))",
+    position = (.7,0),
+    fontsize = 25
+)
 save("SICBFigs/GainFz.png",fig,px_per_unit=4)
 
 display(fig)

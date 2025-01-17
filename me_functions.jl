@@ -1,4 +1,4 @@
-function h5_to_df(path)
+Int(function h5)_to_df(path)
     h5open(path, "r") do file
         # Read the matrix from the file
         matrix = read(file, "data")
@@ -338,9 +338,9 @@ function read_ind(datadir,moth,wb_method)
                     DataFramesMeta.transform!(_, [:moth, :species, :muscle, :wb, :wblen, :time, :phase, :validwb] => unwrap_spikes_to_next => [:wb, :wblen, :time, :phase]) |> 
                     DataFramesMeta.transform(_, 
                     Symbol.(vcat(ftnames, "wb", "validwb")) => 
-                    #compute_PCA_time => 
-                        compute_PCA_phase => 
-                            Symbol.([f * "_pc" * string(s) for s in 1:3 for f in ftnames]))
+                    compute_PCA_time => 
+                        # compute_PCA_phase => 
+                        Symbol.([f * "_pc" * string(s) for s in 1:3 for f in ftnames]))
             df = @pipe df |>
                 # Remove invalid wingbeats
                 @subset(_, :validwb) |> 
@@ -364,8 +364,8 @@ function get_side_slips(datadir,moth,params,trials)
     ftnames = ["fx","fy","fz","tx","ty","tz"]
     files = glob("*.h5",joinpath(datadir,moth))
     tris =[path for path in files if occursin("00", path)]
-    path_pre = tris[trials[1]]
-    path_post = tris[trials[2]]
+    path_pre = tris[Int(trials[1])]
+    path_post = tris[Int(trials[2])]
 
     pre_fx = transform_FT(transpose(Matrix(h5_to_df(path_pre)[!,ftnames]) .- params["bias"]))[:,1]
     post_fx = transform_FT(transpose(Matrix(h5_to_df(path_post)[!,ftnames]) .- params["bias"]))[:,1]

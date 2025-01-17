@@ -120,3 +120,22 @@ text!(ax,
     color=:red
 )
 f 
+##
+time = forfig.wstime .- minimum(forfig.wstime)
+fig = Figure(resolution=(800,600))
+ax1 = Axis(fig[1,1],ylabel="Δ DLM Timing (ms)",xlabel="Time (s)",ylabelcolor=dlmcolor,yticklabelcolor=dlmcolor)
+scatter!(ax1,time[14:end],forfig.time_difference[14:end] .* 1e3,markersize=10,color=dlmcolor)
+ax2 = Axis(fig[1,1],ylabel="Side Slip Force (mN)",yaxisposition=:right,ylabelcolor=:steelblue,yticklabelcolor=:steelblue)
+scatter!(ax2,time.+0.5,forfig.fx .* 1e3,color=:steelblue)
+linkxaxes!(ax1,ax2)
+ax1.limits = (0,10,nothing,nothing)
+
+save("SICBFigs/DLMFX.png",fig,px_per_unit=4)
+fig
+##
+f = Figure(resolution=(800,800))
+ax = Axis(f[1,1],ylabel="Correlation",limits=(-0.5,1.5,0.,0.8),xticksvisible=false,xticklabelsvisible=false)
+scatter!(ax,cccs.tri,cccs.newcor,color=cccs.tri,colormap=[skinnyblue,fatred],markersize=25)
+
+f
+save("SICBFigs/DotsCorDLM.png",f,px_per_unit=4)
