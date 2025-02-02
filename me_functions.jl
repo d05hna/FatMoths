@@ -1,4 +1,4 @@
-Int(function h5)_to_df(path)
+function h5_to_df(path)
     h5open(path, "r") do file
         # Read the matrix from the file
         matrix = read(file, "data")
@@ -579,4 +579,80 @@ function get_big_data(df,torp)
     leftjoin!(full_data,fzs,on=[:wb,:trial,:moth])
     select!(full_data,:moth,:wb,:trial,:fz,:wbfreq,:)
     return(full_data)
+end
+##
+function get_mean_changes(allmoths)
+    moths = collect(keys(allmoths))
+    freqqs = [0.200, 0.300, 0.500, 0.700, 1.100, 1.300, 1.700, 1.900, 2.300, 2.900, 3.700, 4.300, 5.300, 6.100, 7.900, 8.900, 11.30, 13.70]
+    peaks = DataFrame()
+    all_data = DataFrame()
+    for moth in moths 
+        d = allmoths[moth]
+        notpc = filter(col -> !contains(string(col), "_pc"), names(d["data"]))
+        all_data=vcat(all_data,d["data"][!,notpc])
+    end
+    for moth in moths 
+        pre = allmoths[moth]["fxpre"]
+        post = allmoths[moth]["fxpost"]
+
+        fftpre = abs.(fft(pre)[2:50000])
+        fftpost = abs.(fft(post)[2:50000])
+        freqrange = round.(fftfreq(length(pre),fs)[2:50000],digits=4)
+        d4t = all_data[all_data.moth.==moth,:]
+        for f in freqqs
+            id = findfirst(x -> x == f, freqrange)
+            peakpre = fftpre[id]
+            peakpost = fftpost[id]
+            prdic = Dict("moth"=>moth,"freq" => f, "trial" => "pre", 
+                "peak" => peakpre, "fz" => mean(d4t[d4t.trial.=="pre",:fz]) )
+            podic = Dict("moth"=>moth,"freq" => f, "trial" => "post", 
+                "peak" => peakpost,"fz" => mean(d4t[d4t.trial.=="post",:fz]) )
+            push!(peaks,prdic,cols=:union)
+            push!(peaks,podic,cols=:union)
+        end
+    end
+    peaks.fz = peaks.fz .* -1 
+    ##
+    ##
+    g=9.81
+    ms = Dict(
+        "2024_11_01" => Dict("pre"=>1.912,"post"=>2.075),
+        "2024_11_04" => Dict("pre"=>2.149,"post"=>2.289),
+        "2024_11_05" => Dict("pre"=>2.190,"post"=>2.592),
+        "2024_11_07" => Dict("pre"=>1.801,"post"=>1.882),
+        "2024_11_08" => Dict("pre"=>2.047,"post"=>2.369),
+        "2024_11_11" => Dict("pre"=>1.810,"post"=>2.090),
+        "2024_11_20" => Dict("pre"=>1.512,"post"=>1.784),
+        "2025_01_30" => Dict("pre"=>2.13, "post"=>2.546)
+    )
+    ##
+    function normalize_fz(row, ms, g)
+        return row.fz / ((ms[row.moth]["pre"]/1000) * g)
+    end
+
+    peaks.norm_fz = map(row -> normalize_fz(row, ms, g), eachrow(peaks))
+
+    ##
+    grouped = groupby(peaks,[:moth,:freq])
+
+    changes = combine(grouped) do gdf 
+        pre_vals = filter(r -> r.trial == "pre",gdf)
+        post_vals = filter(r -> r.trial == "post",gdf)
+        
+        (
+            fz_change =  (mean(post_vals.norm_fz) - mean(pre_vals.norm_fz)) / abs(mean(pre_vals.norm_fz)),
+            gain_change = (mean(post_vals.peak) - mean(pre_vals.peak))/abs(mean(pre_vals.peak))*100
+        )
+    end
+
+    mean_changes = combine(groupby(changes, :moth),
+    :fz_change => mean => :mean_fz,
+    :gain_change => mean => :mean_gain
+    )
+    mean_changes.mass .= 0.
+    for row in eachrow(mean_changes)
+        row.mass = ms[row.moth]["post"] - ms[row.moth]["pre"] 
+    end
+    ##
+    return(mean_changes)
 end

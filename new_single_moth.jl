@@ -14,7 +14,9 @@ using DataFramesMeta
 using FFTW
 using AlgebraOfGraphics
 using JLD2
-using MultivariateStats
+using ProgressMeter
+using Statistics 
+using StatsBase
 include("/home/doshna/Documents/PHD/comparativeMPanalysis/functions.jl")
 include("/home/doshna/Documents/PHD/comparativeMPanalysis/readAndPreprocessFunctions.jl")
 include("me_functions.jl")
@@ -39,14 +41,16 @@ wb_len_thresh = Dict(
                     "Manduca sexta" => [1/30, 1/15]) 
 phase_wrap_thresh = Dict(
     "Manduca sexta"  => Dict(
-        "2024_11_01" => Dict("ax"=>0.9, "ba"=>2.0, "sa"=>0.7, "dvm"=>0.41, "dlm"=>0.7),
+        "2024_11_01" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>0.7, "dvm"=>0.41, "dlm"=>0.7),
         "2024_11_04" => Dict("ax"=>0.9, "ba"=>2.0, "sa"=>0.7, "dvm"=>0.41, "dlm"=>0.7),
         "2024_11_05" => Dict("ax"=>0.9, "ba"=>2.0, "sa"=>0.7, "dvm"=>0.41, "dlm"=>0.7),
         "2024_11_07" => Dict("ax"=>0.9, "ba"=>2.0, "sa"=>0.7, "dvm"=>0.41, "dlm"=>0.7),
         "2024_11_08" => Dict("ax"=>0.9, "ba"=>2.0, "sa"=>0.7, "dvm"=>0.41, "dlm"=>0.7),
         "2024_11_11" => Dict("ax"=>0.9, "ba"=>2.0, "sa"=>0.7, "dvm"=>0.41, "dlm"=>0.7),
         "2024_11_20" => Dict("ax"=>0.9, "ba"=>2.0, "sa"=>0.7, "dvm"=>0.41, "dlm"=>0.7),
-        "2025_01_14" => Dict("ax"=>0.9, "ba"=>2.0, "sa"=>0.7, "dvm"=>0.41, "dlm"=>0.7)
+        "2025_01_14" => Dict("ax"=>0.9, "ba"=>2.0, "sa"=>0.7, "dvm"=>0.41, "dlm"=>0.7),
+        "2025_01_23" => Dict("ax"=>0.9, "ba"=>2.0, "sa"=>0.7, "dvm"=>0.41, "dlm"=>0.7),
+        "2025_01_30" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>0.7, "dvm"=>0.41, "dlm"=>0.7)
         )
 )
 cheby_bandpass = digitalfilter(Bandpass(z_bandpass...; fs=fs), Chebyshev1(4, 4))
@@ -56,12 +60,8 @@ muscle_names = ["lax","lba","lsa","ldvm","ldlm",
 ft_names = ["fx","fy","fz","tx","ty","tz"]
 
 ##
-moth = "2025_01_14"
-##
-df = DataFrame()
-params = Dict()
-read_individual!(joinpath(data_dir,moth),df,params,wb_len_thresh,phase_wrap_thresh;cheby_bandpass=cheby_bandpass)
-df.time_abs .+= 30
+moth = "2025_01_30"
+
 ##
 gtp = Dict(
     ## Moth => Trial 1, Trial 2, Start 1, Start 2, Trials are 1 indexed
@@ -72,9 +72,18 @@ gtp = Dict(
     "2024_11_08" => [2,4,1e5,1],
     "2024_11_11" => [1,2,1,1],
     "2024_11_20" => [1,3,1e5,1.5e5],
-    "2025_01_14" => [1,2,1,1.5e5],
+    "2025_01_23" => [1,3,1e5,2e5],
+    "2025_01_30" => [1,2,1e4,1.25e5]
+
+
 )
+
 ##
+df = DataFrame()
+params = Dict()
+df_ft_all = DataFrame()
+read_individual!(joinpath(data_dir,moth),df,df_ft_all,params,wb_len_thresh,phase_wrap_thresh;cheby_bandpass=cheby_bandpass)
+df.time_abs .+= 30
 fx_pre,fx_post = get_side_slips(data_dir,moth,params[moth],[Int(gtp[moth][1]),Int(gtp[moth][2])])
 ##
 """
@@ -169,5 +178,5 @@ else
 
     allmoths[moth] = d 
 end
-@save "fat_moths_set_1.jld" allmoths
+@save "/home/doshna/Documents/PHD/FatMoths/fat_moths_set_1.jld" allmoths
 
