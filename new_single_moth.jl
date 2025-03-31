@@ -32,6 +32,7 @@ theme.palette = (color = [:turquoise,:coral],)
 set_theme!(theme)
 ##
 data_dir = joinpath("/home", "doshna", "Documents", "PHD", "data", "fatties")
+# data_dir = "/home/doshna/Downloads/"
 # Controls
 fs = 10000
 emg_highpass = 70
@@ -41,16 +42,19 @@ wb_len_thresh = Dict(
                     "Manduca sexta" => [1/30, 1/15]) 
 phase_wrap_thresh = Dict(
     "Manduca sexta"  => Dict(
-        "2024_11_01" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>0.7, "dvm"=>0.41, "dlm"=>0.7),
-        "2024_11_04" => Dict("ax"=>0.9, "ba"=>2.0, "sa"=>0.7, "dvm"=>0.41, "dlm"=>0.7),
-        "2024_11_05" => Dict("ax"=>0.9, "ba"=>2.0, "sa"=>0.7, "dvm"=>0.41, "dlm"=>0.7),
-        "2024_11_07" => Dict("ax"=>0.9, "ba"=>2.0, "sa"=>0.7, "dvm"=>0.41, "dlm"=>0.7),
-        "2024_11_08" => Dict("ax"=>0.9, "ba"=>2.0, "sa"=>0.7, "dvm"=>0.41, "dlm"=>0.7),
-        "2024_11_11" => Dict("ax"=>0.9, "ba"=>2.0, "sa"=>0.7, "dvm"=>0.41, "dlm"=>0.7),
-        "2024_11_20" => Dict("ax"=>0.9, "ba"=>2.0, "sa"=>0.7, "dvm"=>0.41, "dlm"=>0.7),
-        "2025_01_14" => Dict("ax"=>0.9, "ba"=>2.0, "sa"=>0.7, "dvm"=>0.41, "dlm"=>0.7),
-        "2025_01_23" => Dict("ax"=>0.9, "ba"=>2.0, "sa"=>0.7, "dvm"=>0.41, "dlm"=>0.7),
-        "2025_01_30" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>0.7, "dvm"=>0.41, "dlm"=>0.7)
+        "2024_11_01" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
+        "2024_11_04" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
+        "2024_11_05" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
+        "2024_11_07" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
+        "2024_11_08" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
+        "2024_11_11" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
+        "2024_11_20" => Dict("ax"=>2., "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
+        "2025_01_14" => Dict("ax"=>2.9, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
+        "2025_01_23" => Dict("ax"=>2.9, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
+        "2025_01_30" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
+        "2025_03_20" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
+        "2025_03_28" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7)
+
         )
 )
 cheby_bandpass = digitalfilter(Bandpass(z_bandpass...; fs=fs), Chebyshev1(4, 4))
@@ -58,9 +62,6 @@ cheby_bandpass = digitalfilter(Bandpass(z_bandpass...; fs=fs), Chebyshev1(4, 4))
 muscle_names = ["lax","lba","lsa","ldvm","ldlm",
 "rdlm","rdvm","rsa","rba","rax"]
 ft_names = ["fx","fy","fz","tx","ty","tz"]
-
-##
-moth = "2025_01_30"
 
 ##
 gtp = Dict(
@@ -72,19 +73,21 @@ gtp = Dict(
     "2024_11_08" => [2,4,1e5,1],
     "2024_11_11" => [1,2,1,1],
     "2024_11_20" => [1,3,1e5,1.5e5],
-    "2025_01_23" => [1,3,1e5,2e5],
-    "2025_01_30" => [1,2,1e4,1.25e5]
+    "2025_01_30" => [1,2,1e5,2e5],
+    "2025_03_20" => [1,2,5e4,5e4],
+    "2025_03_28" => [1,2,1,1]
 
 
 )
 
 ##
+moth = "2025_03_28"
 df = DataFrame()
 params = Dict()
 df_ft_all = DataFrame()
 read_individual!(joinpath(data_dir,moth),df,df_ft_all,params,wb_len_thresh,phase_wrap_thresh;cheby_bandpass=cheby_bandpass)
 df.time_abs .+= 30
-fx_pre,fx_post = get_side_slips(data_dir,moth,params[moth],[Int(gtp[moth][1]),Int(gtp[moth][2])])
+ft_pre,ft_post = get_side_slips(data_dir,moth,params[moth],[Int(gtp[moth][1]),Int(gtp[moth][2])])
 ##
 """
 STOP RIGHT HERE!!! LOOK Between Videos and Force Traces and Get the Best 10 Seconds of Tracking for each!!
@@ -95,8 +98,11 @@ Also if the pre and post trials are not 0 and 2, then change those too!!
 start_pre = Int(gtp[moth][3])
 start_post = Int(gtp[moth][4])
 
-pre10 = fx_pre[start_pre:Int(start_pre+1e5-1)]
-post10 = fx_post[start_post:Int(start_post+1e5-1)]
+pre10all = ft_pre[start_pre:Int(start_pre+1e5-1),:]
+post10all = ft_post[start_post:Int(start_post+1e5-1),:]
+
+pre10 = pre10all[:,1]
+post10 = post10all[:,1]
 
 tris = convert(Vector{Int},[gtp[moth][1],gtp[moth][2]] .- 1)
 predf = df[df.trial.==tris[1],:]
@@ -169,6 +175,8 @@ if moth in collect(keys(allmoths))
     allmoths[moth]["data"] = df_to_use
     allmoths[moth]["fxpre"] = pre10
     allmoths[moth]["fxpost"] = post10
+    allmoths[moth]["ftpre"] = pre10all
+    allmoths[moth]["ftpos"] = post10all
 else
     d = Dict(
         "data" => df_to_use,

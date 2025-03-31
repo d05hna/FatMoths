@@ -367,8 +367,8 @@ function get_side_slips(datadir,moth,params,trials)
     path_pre = tris[Int(trials[1])]
     path_post = tris[Int(trials[2])]
 
-    pre_fx = transform_FT(transpose(Matrix(h5_to_df(path_pre)[!,ftnames]) .- params["bias"]))[:,1]
-    post_fx = transform_FT(transpose(Matrix(h5_to_df(path_post)[!,ftnames]) .- params["bias"]))[:,1]
+    pre_fx = transform_FT(transpose(Matrix(h5_to_df(path_pre)[!,ftnames]) .- params["bias"]))[:,1:6]
+    post_fx = transform_FT(transpose(Matrix(h5_to_df(path_post)[!,ftnames]) .- params["bias"]))[:,1:6]
 
     return(pre_fx,post_fx)
 end
@@ -582,14 +582,16 @@ function get_big_data(df,torp)
 end
 ##
 function get_mean_changes(allmoths)
+    fs = 1e4
     moths = collect(keys(allmoths))
     freqqs = [0.200, 0.300, 0.500, 0.700, 1.100, 1.300, 1.700, 1.900, 2.300, 2.900, 3.700, 4.300, 5.300, 6.100, 7.900, 8.900, 11.30, 13.70]
     peaks = DataFrame()
     all_data = DataFrame()
     for moth in moths 
-        d = allmoths[moth]
-        notpc = filter(col -> !contains(string(col), "_pc"), names(d["data"]))
-        all_data=vcat(all_data,d["data"][!,notpc])
+        d = allmoths[moth]["data"]
+        notpc = filter(col -> !contains(string(col), "_pc"), names(d))
+        sel = filter(x -> !(x in ["wbtime","pos","vel"]), notpc)
+        all_data=vcat(all_data,d[!,sel])
     end
     for moth in moths 
         pre = allmoths[moth]["fxpre"]
@@ -597,10 +599,12 @@ function get_mean_changes(allmoths)
 
         fftpre = abs.(fft(pre)[2:50000])
         fftpost = abs.(fft(post)[2:50000])
-        freqrange = round.(fftfreq(length(pre),fs)[2:50000],digits=4)
+        freqrange = round.(fftfreq(Int(1e5),fs)[2:50000],digits=4)
+        println(freqrange[1:20])
         d4t = all_data[all_data.moth.==moth,:]
         for f in freqqs
             id = findfirst(x -> x == f, freqrange)
+
             peakpre = fftpre[id]
             peakpost = fftpost[id]
             prdic = Dict("moth"=>moth,"freq" => f, "trial" => "pre", 
@@ -623,7 +627,8 @@ function get_mean_changes(allmoths)
         "2024_11_08" => Dict("pre"=>2.047,"post"=>2.369),
         "2024_11_11" => Dict("pre"=>1.810,"post"=>2.090),
         "2024_11_20" => Dict("pre"=>1.512,"post"=>1.784),
-        "2025_01_30" => Dict("pre"=>2.13, "post"=>2.546)
+        "2025_01_30" => Dict("pre"=>2.13, "post"=>2.546),
+        "2025_03_20" => Dict("pre"=>2.246, "post"=>2.344)
     )
     ##
     function normalize_fz(row, ms, g)
@@ -655,4 +660,232 @@ function get_mean_changes(allmoths)
     end
     ##
     return(mean_changes)
+end
+function put_stim_in!(df,allmoths,moth)
+    spre = allmoths[moth]["stimpre"]
+    spost = allmoths[moth]["stimpost"]
+    stimtime = range(0,10,length=length(spre))
+
+    sgpre = savitzky_golay(spre,11,4;deriv=0)
+    vpre = savitzky_golay(spre, 11, 4; deriv=1)
+
+    sgpost = savitzky_golay(spost,11,4;deriv=0)
+    vpost = savitzky_golay(spost,11,4;deriv=1)
+
+    dfpre = df[df.trial.=="pre",:]
+    dfpre.time_abs .-= minimum(dfpre.time_abs)
+    dfprewbtime = combine(groupby(dfpre,:wb),
+        :time_abs => mean => :wbtime
+    )
+    prestimidx = [findlast(x-> x  <= i,stimtime) for i in dfprewbtime.wbtime]
+
+    dfprewbtime.pos = sgpre.y[prestimidx]
+    dfprewbtime.vel = vpre.y[prestimidx]
+    dfprewbtime.wb = unique(dfpre.wb)
+
+    dfpost = df[df.trial.=="post",:]
+    dfpost.time_abs .-= minimum(dfpost.time_abs)
+    dfpostwbtime = combine(groupby(dfpost,:wb),
+        :time_abs => mean => :wbtime
+    )
+    poststimidx = [findlast(x-> x  <= i,stimtime) for i in dfpostwbtime.wbtime]
+    dfpostwbtime.pos = sgpost.y[poststimidx]
+    dfpostwbtime.vel = vpost.y[poststimidx]
+    dfpostwbtime.wb = unique(dfpost.wb)
+
+    allstim = vcat(dfprewbtime,dfpostwbtime)
+
+    leftjoin!(df,allstim,on=:wb)
+    select!(df, Not(r"^[ft][xyz]_pc[4-9]|[ft][xyz]_pc10$"))
+end
+
+function transfer_function(allmoths, moth)
+    freqqs = [0.200, 0.300, 0.500, 0.700, 1.100, 1.300, 1.700, 1.900, 2.300, 2.900, 3.700, 4.300, 5.300, 6.100, 7.900, 8.900, 11.30, 13.70]
+
+    
+    stimpre = allmoths[moth]["stimpre"]
+    fxpre = allmoths[moth]["fxpre"]
+
+    stimpost = allmoths[moth]["stimpost"]
+    fxpost = allmoths[moth]["fxpost"]
+
+    fftprestim = (fft(float.(stimpre)))
+    stimfreq = round.(fftfreq(length(stimpre),300),digits=1)
+    fftpoststim = (fft(float.(stimpost)))
+
+    fftfxpre = fft(float.(fxpre))
+    fftfxpos = fft(float.(fxpost)) 
+    fxfreq = round.(fftfreq(length(fxpre),1e4),digits=1)
+
+    frset = Set(freqqs)
+
+    stimidx= [i for i in 1:length(stimpre) if stimfreq[i] in frset]
+    fxidx= [i for i in 1:length(fxpre) if fxfreq[i] in frset]
+
+    sfxpre = fftfxpre[fxidx]
+    sfxpost = fftfxpos[fxidx]
+
+    sstimpre = fftprestim[stimidx]
+    sstimpost = fftpoststim[stimidx]
+
+    pre = sfxpre ./ sstimpre
+    post = sfxpost ./ sstimpost
+    return pre,post
+end
+function add_relpos_column(df)
+    groups = groupby(df, [:moth, :trial])
+    
+    result = DataFrame()
+    
+    for group in groups
+        sorted_pos = sort(group.pos)
+        n = length(sorted_pos)
+        
+        lower_bound = sorted_pos[ceil(Int, n/3)]
+        upper_bound = sorted_pos[ceil(Int, 2*n/3)]
+        
+        group_copy = copy(group)
+        
+        group_copy.relpos = map(group_copy.pos) do val
+            if val <= lower_bound
+                return "right"
+            elseif val > upper_bound
+                return "left"
+            else
+                return "middle"
+            end
+        end
+        append!(result, group_copy)
+    end
+    
+    return result
+end
+function add_relfx_column!(df)
+    groups = groupby(df, [:moth, :trial])
+    
+    result = DataFrame()
+    
+    for group in groups
+        sorted_pos = sort(group.fx)
+        n = length(sorted_pos)
+        
+        lower_bound = sorted_pos[ceil(Int, n/3)]
+        upper_bound = sorted_pos[ceil(Int, 2*n/3)]
+        
+        group_copy = copy(group)
+        
+        group_copy.relfx = map(group_copy.fx) do val
+            if val <= lower_bound
+                return "right"
+            elseif val > upper_bound
+                return "left"
+            else
+                return "middle"
+            end
+        end
+        append!(result, group_copy)
+    end
+    
+    return result
+end
+function add_relyaw_column!(df)
+    groups = groupby(df, [:moth, :trial])
+    
+    result = DataFrame()
+    
+    for group in groups
+        sorted_pos = sort(group.tz)
+        n = length(sorted_pos)
+        
+        lower_bound = sorted_pos[ceil(Int, n/3)]
+        upper_bound = sorted_pos[ceil(Int, 2*n/3)]
+        
+        group_copy = copy(group)
+        
+        group_copy.relyaw = map(group_copy.tz) do val
+            if val <= lower_bound
+                return "right"
+            elseif val > upper_bound
+                return "left"
+            else
+                return "middle"
+            end
+        end
+        append!(result, group_copy)
+    end
+    
+    return result
+end
+
+function transfer_function_velo(allmoths, moth)
+    freqqs = [0.200, 0.300, 0.500, 0.700, 1.100, 1.300, 1.700, 1.900, 2.300, 2.900, 3.700, 4.300, 5.300, 6.100, 7.900, 8.900, 11.30, 13.70]
+
+    
+    stimpre = allmoths[moth]["velpre"]
+    fxpre = allmoths[moth]["fxpre"]
+
+    stimpost = allmoths[moth]["velpost"]
+    fxpost = allmoths[moth]["fxpost"]
+
+    fftprestim = (fft(float.(stimpre)))
+    stimfreq = round.(fftfreq(length(stimpre),300),digits=1)
+    fftpoststim = (fft(float.(stimpost)))
+
+    fftfxpre = fft(float.(fxpre))
+    fftfxpos = fft(float.(fxpost)) 
+    fxfreq = round.(fftfreq(length(fxpre),1e4),digits=1)
+
+    frset = Set(freqqs)
+
+    stimidx= [i for i in 1:length(stimpre) if stimfreq[i] in frset]
+    fxidx= [i for i in 1:length(fxpre) if fxfreq[i] in frset]
+
+    sfxpre = fftfxpre[fxidx]
+    sfxpost = fftfxpos[fxidx]
+
+    sstimpre = fftprestim[stimidx]
+    sstimpost = fftpoststim[stimidx]
+
+    pre = sfxpre ./ sstimpre
+    post = sfxpost ./ sstimpost
+    return pre,post
+end
+
+## 
+function transfer_function_coherence(allmoths,moth)
+    freqqs = [0.200, 0.300, 0.500, 0.700, 1.100, 1.300, 1.700, 1.900, 2.300, 2.900, 3.700, 4.300, 5.300, 6.100, 7.900, 8.900, 11.30, 13.70]
+
+    
+    stimpre = allmoths[moth]["stimpre"]
+    fxpre = allmoths[moth]["fxpre"]
+
+    stimpost = allmoths[moth]["stimpost"]
+    fxpost = allmoths[moth]["fxpost"]
+
+    vpre = allmoths[moth]["velpre"]
+    vpost = allmoths[moth]["velpost"]
+
+    itp1 = interpolate(stimpre, BSpline(Linear()))
+    stimpre_l = itp1(LinRange(1, length(itp1), Int(1e5)))
+
+    itp2 = interpolate(stimpost, BSpline(Linear()))
+    stimpost_l = itp2(LinRange(1, length(itp2), Int(1e5)))
+    
+    itp3 = interpolate(vpre, BSpline(Linear()))
+    vpre_l = itp3(LinRange(1, length(itp3), Int(1e5)))
+    
+    itp4 = interpolate(vpost, BSpline(Linear()))
+    vpost_l = itp4(LinRange(1, length(itp4), Int(1e5)))
+    
+    stimfreq = round.(fftfreq(100000,10000),digits=4)
+    stimidx= [i for i in 1:length(stimpre) if stimfreq[i] in freqqs]
+
+
+    coh_pre_pos = mt_coherence(hcat(fxpre,stimpre_l)';fs=1e4,nfft=100000).coherence[1,2,stimidx]
+    coh_post_pos = mt_coherence(hcat(fxpost,stimpost_l)';fs=1e4,nfft=100000).coherence[1,2,stimidx]
+    coh_pre_vel = mt_coherence(hcat(fxpre,vpre_l)';fs=1e4,nfft=100000).coherence[1,2,stimidx]
+    coh_post_vel = mt_coherence(hcat(fxpost,vpost_l)';fs=1e4,nfft=100000).coherence[1,2,stimidx]
+
+
+    return coh_pre_pos,coh_post_pos,coh_pre_vel,coh_post_vel
 end
