@@ -50,13 +50,13 @@ phase_wrap_thresh = Dict(
         "2024_11_11" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
         "2024_11_20" => Dict("ax"=>2., "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
         "2025_01_14" => Dict("ax"=>2.9, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
-        "2025_01_23" => Dict("ax"=>2.9, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
         "2025_01_30" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
         "2025_03_20" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
-        "2025_03_28" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7)
+        "2025_04_02" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
 
         )
 )
+
 cheby_bandpass = digitalfilter(Bandpass(z_bandpass...; fs=fs), Chebyshev1(4, 4))
 
 muscle_names = ["lax","lba","lsa","ldvm","ldlm",
@@ -73,20 +73,22 @@ gtp = Dict(
     "2024_11_08" => [2,4,1e5,1],
     "2024_11_11" => [1,2,1,1],
     "2024_11_20" => [1,3,1e5,1.5e5],
-    "2025_01_30" => [1,2,1e5,2e5],
+    "2025_01_30" => [1,2,1e5,1.5e5],
     "2025_03_20" => [1,2,5e4,5e4],
-    "2025_03_28" => [1,2,1,1]
+    "2025_03_28" => [1,2,1,1],
+    "2025_04_02" => [1,2,5e4,1e5],
+    "2025_01_14" => [1,2,1,2e5],
 
 
 )
 
 ##
-moth = "2025_03_28"
+moth = "2024_11_05"
 df = DataFrame()
 params = Dict()
 df_ft_all = DataFrame()
 read_individual!(joinpath(data_dir,moth),df,df_ft_all,params,wb_len_thresh,phase_wrap_thresh;cheby_bandpass=cheby_bandpass)
-df.time_abs .+= 30
+df.time_abs .+= 30 
 ft_pre,ft_post = get_side_slips(data_dir,moth,params[moth],[Int(gtp[moth][1]),Int(gtp[moth][2])])
 ##
 """
@@ -181,7 +183,9 @@ else
     d = Dict(
         "data" => df_to_use,
         "fxpre" => pre10,
-        "fxpost" => post10
+        "fxpost" => post10,
+        "ftpre" => pre10all,
+        "ftpos" => post10all,
     )
 
     allmoths[moth] = d 

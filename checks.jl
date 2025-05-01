@@ -34,16 +34,19 @@ freqqs = [0.200, 0.300, 0.500, 0.700, 1.100, 1.300, 1.700, 1.900, 2.300, 2.900, 
 ##
 moth = "2024_11_08"
 # Get the transer Function and Nyquist Plots
-for moth in collect(keys(allmoths))
-    pr,po = transfer_function(allmoths,moth)
+for moth in ["2024_11_11","2024_11_20","2024_11_07","2024_11_08","2025_01_30","2024_11_01","2024_11_05","2024_11_04"]
+
+    pr,po = transfer_function(allmoths,moth;axis="tz")
 
     unpre = unwrap(angle.(pr))
     unpo = unwrap(angle.(po))
 
-    fpre = allmoths[moth]["fxpre"]
+    fpre = allmoths[moth]["ftpre"][:,6]
+
     spre = float.(allmoths[moth]["stimpre"])
 
-    fpo = allmoths[moth]["fxpost"]
+    fpo = allmoths[moth]["ftpos"][:,6]
+
     spo = float.(allmoths[moth]["stimpost"])
 
     winlen = 400
@@ -85,7 +88,7 @@ for moth in collect(keys(allmoths))
     lines!(ax5,tf,fpo,color=:firebrick)
     lines!(ax6,ts,spo,color=:forestgreen)
 
-    save("checks/tfUNWRAP/$moth.png",f)
+    save("checks/YawTracking/$moth.png",f)
 
     ## Nyq`
     fig = Figure(size=(1000,500))
@@ -100,7 +103,7 @@ for moth in collect(keys(allmoths))
     lines!(ax2,real.(po),imag.(po),color=:firebrick,alpha=0.5,linewidth=4)
     scatter!(ax2,real.(po),imag.(po),color=:firebrick)
 
-    save("checks/nyquist/$moth.png",fig)
+    save("checks/YawTracking/Nyquist$moth.png",fig)
 
 end
 ## Just look at gain and Phase for the FX
