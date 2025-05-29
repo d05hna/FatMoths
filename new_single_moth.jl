@@ -57,7 +57,7 @@ phase_wrap_thresh = Dict(
         )
 )
 
-cheby_bandpass = digitalfilter(Bandpass(z_bandpass...; fs=fs), Chebyshev1(4, 4))
+cheby_bandpass = digitalfilter(Bandpass(z_bandpass...), Chebyshev1(4, 4),fs=fs)
 
 muscle_names = ["lax","lba","lsa","ldvm","ldlm",
 "rdlm","rdvm","rsa","rba","rax"]
@@ -75,9 +75,7 @@ gtp = Dict(
     "2024_11_20" => [1,3,1e5,1.5e5],
     "2025_01_30" => [1,2,1e5,1.5e5],
     "2025_03_20" => [1,2,5e4,5e4],
-    "2025_03_28" => [1,2,1,1],
     "2025_04_02" => [1,2,5e4,1e5],
-    "2025_01_14" => [1,2,1,2e5],
 
 
 )
@@ -192,3 +190,57 @@ else
 end
 @save "/home/doshna/Documents/PHD/FatMoths/fat_moths_set_1.jld" allmoths
 
+## Run ALl the Moths 
+moths = collect(keys(gtp))
+##
+
+@showprogress for moth in moths
+    df = DataFrame()
+    params = Dict()
+    df_ft_all = DataFrame()
+    read_individual!(joinpath(data_dir,moth),df,df_ft_all,params,wb_len_thresh,phase_wrap_thresh;cheby_bandpass=cheby_bandpass)
+    df.time_abs .+= 30 
+    ft_pre,ft_post = get_side_slips(data_dir,moth,params[moth],[Int(gtp[moth][1]),Int(gtp[moth][2])])
+
+    start_pre = Int(gtp[moth][3])
+    start_post = Int(gtp[moth][4])
+
+    pre10all = ft_pre[start_pre:Int(start_pre+1e5-1),:]
+    post10all = ft_post[start_post:Int(start_post+1e5-1),:]
+
+    pre10 = pre10all[:,1]
+    post10 = post10all[:,1]
+
+    tris = convert(Vector{Int},[gtp[moth][1],gtp[moth][2]] .- 1)
+    predf = df[df.trial.==tris[1],:]
+    predf = predf[predf.time_abs .> start_pre /fs .&& predf.time_abs .< (start_pre-1+1e5)/fs,:]
+    predf.trial .= "pre"
+
+    postdf = df[df.trial.==tris[2],:]
+    postdf = postdf[postdf.time_abs .> start_post/fs .&& postdf.time_abs .< (start_post-1+1e5)/fs,:]
+    postdf.trial .= "post"
+
+    df_to_use = vcat(predf,postdf,cols=:union)
+
+
+    ## save away
+    @load "/home/doshna/Documents/PHD/FatMoths/fat_moths_set_1.jld" allmoths
+    if moth in collect(keys(allmoths))
+        allmoths[moth]["data"] = df_to_use
+        allmoths[moth]["fxpre"] = pre10
+        allmoths[moth]["fxpost"] = post10
+        allmoths[moth]["ftpre"] = pre10all
+        allmoths[moth]["ftpos"] = post10all
+    else
+        d = Dict(
+            "data" => df_to_use,
+            "fxpre" => pre10,
+            "fxpost" => post10,
+            "ftpre" => pre10all,
+            "ftpos" => post10all,
+        )
+
+        allmoths[moth] = d 
+    end
+    @save "/home/doshna/Documents/PHD/FatMoths/fat_moths_set_1.jld" allmoths
+end
