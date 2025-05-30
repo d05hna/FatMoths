@@ -40,7 +40,6 @@ h5open("/home/doshna/Documents/PHD/data/fatties/DLC/raw_mats.h5", "w") do file
     file["names"] = ["frame","x","y","likelihood"]
 end
 ##
-n = "20241101_001"
 
 sub = filter(x->occursin(n,x), collect(keys(alldata)))
 together = DataFrame()

@@ -1,3 +1,12 @@
+function h5_to_dict(path)
+    data = Dict{String,Any}()
+    h5open(path,"r") do file
+        for name in keys(file)
+            data[name] = read(file[name])
+        end
+    end
+    return data
+end
 function h5_to_df(path)
     h5open(path, "r") do file
         # Read the matrix from the file
