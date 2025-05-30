@@ -597,38 +597,32 @@ function get_mean_changes(allmoths;axis=1)
     peaks = DataFrame()
     all_data = DataFrame()
     for moth in moths 
-        if moth == "2025_04_02"
-        else
-            d = allmoths[moth]["data"]
-            notpc = filter(col -> !contains(string(col), "_pc"), names(d))
-            sel = filter(x -> !(x in ["wbtime","pos","vel"]), notpc)
-            all_data=vcat(all_data,d[!,sel])
-        end
+
+        d = allmoths[moth]["data"]
+        notpc = filter(col -> !contains(string(col), "_pc"), names(d))
+        sel = filter(x -> !(x in ["wbtime","pos","vel"]), notpc)
+        all_data=vcat(all_data,d[!,sel])
     end
     for moth in moths 
-        println(moth)
-        if moth == "2025_04_02"
-        else
-            pre = allmoths[moth]["ftpre"][:,axis]
-            post = allmoths[moth]["ftpos"][:,axis]
+        pre = allmoths[moth]["ftpre"][:,axis]
+        post = allmoths[moth]["ftpos"][:,axis]
 
-            fftpre = abs.(fft(pre)[2:50000])
-            fftpost = abs.(fft(post)[2:50000])
-            freqrange = round.(fftfreq(Int(1e5),fs)[2:50000],digits=4)
-            println(freqrange[1:20])
-            d4t = all_data[all_data.moth.==moth,:]
-            for f in freqqs
-                id = findfirst(x -> x == f, freqrange)
+        fftpre = abs.(fft(pre)[2:50000])
+        fftpost = abs.(fft(post)[2:50000])
+        freqrange = round.(fftfreq(Int(1e5),fs)[2:50000],digits=4)
+        println(freqrange[1:20])
+        d4t = all_data[all_data.moth.==moth,:]
+        for f in freqqs
+            id = findfirst(x -> x == f, freqrange)
 
-                peakpre = fftpre[id]
-                peakpost = fftpost[id]
-                prdic = Dict("moth"=>moth,"freq" => f, "trial" => "pre", 
-                    "peak" => peakpre, "fz" => mean(d4t[d4t.trial.=="pre",:fz]) )
-                podic = Dict("moth"=>moth,"freq" => f, "trial" => "post", 
-                    "peak" => peakpost,"fz" => mean(d4t[d4t.trial.=="post",:fz]) )
-                push!(peaks,prdic,cols=:union)
-                push!(peaks,podic,cols=:union)
-            end
+            peakpre = fftpre[id]
+            peakpost = fftpost[id]
+            prdic = Dict("moth"=>moth,"freq" => f, "trial" => "pre", 
+                "peak" => peakpre, "fz" => mean(d4t[d4t.trial.=="pre",:fz]) )
+            podic = Dict("moth"=>moth,"freq" => f, "trial" => "post", 
+                "peak" => peakpost,"fz" => mean(d4t[d4t.trial.=="post",:fz]) )
+            push!(peaks,prdic,cols=:union)
+            push!(peaks,podic,cols=:union)
         end
     end
     peaks.fz = peaks.fz .* -1 
@@ -673,8 +667,10 @@ function get_mean_changes(allmoths;axis=1)
     :gain_change => mean => :mean_gain
     )
     mean_changes.mass .= 0.
+    mean_changes.mass_change.=0.
     for row in eachrow(mean_changes)
-        row.mass = ms[row.moth]["post"] - ms[row.moth]["pre"] 
+        row.mass_change = ms[row.moth]["post"] - ms[row.moth]["pre"] 
+        row.mass = ms[row.moth]["pre"]
     end
     ##
     return(mean_changes)

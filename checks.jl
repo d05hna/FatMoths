@@ -11,7 +11,7 @@ using Optim
 using DSP
 using DelimitedFiles
 using DataFramesMeta
-using FFTW
+using FFTW 
 using AlgebraOfGraphics
 using JLD2
 using Colors
@@ -34,8 +34,7 @@ freqqs = [0.200, 0.300, 0.500, 0.700, 1.100, 1.300, 1.700, 1.900, 2.300, 2.900, 
 ##
 moth = "2024_11_08"
 # Get the transer Function and Nyquist Plots
-for moth in ["2024_11_11","2024_11_20","2024_11_07","2024_11_08","2025_01_30","2024_11_01","2024_11_05","2024_11_04"]
-
+for moth in collect(keys(allmoths))
     pr,po = transfer_function(allmoths,moth;axis="tz")
 
     unpre = unwrap(angle.(pr))

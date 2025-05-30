@@ -34,7 +34,6 @@ set_theme!(theme)
 @load "fat_moths_set_1.jld" allmoths
 ##
 moths = collect(keys(allmoths))
-moths = filter(x-> x!= "2025_03_20",moths)
 ##
 function get_mat_for_vahid(allmoths,m)
     muscle_names = ["lax","lba","lsa","ldvm","ldlm","rdlm","rdvm","rsa","rba","rax"]
@@ -75,7 +74,7 @@ function get_mat_for_vahid(allmoths,m)
     z_bandpass = [5, 30]
     ft_lowpass = 1000
 
-    cheby_bandpass = digitalfilter(Bandpass(z_bandpass...; fs=1e4), Chebyshev1(4, 4))
+    cheby_bandpass = digitalfilter(Bandpass(z_bandpass...), Chebyshev1(4, 4);fs=1e4)
     dfpre = DataFrame(smpre,vcat(muscle_names,["stim","stimvel","fx","fy","fz","tx","ty","tz"]))
     dfpre.wb = @pipe filtfilt(cheby_bandpass, dfpre.fz) |>
         hilbert .|>
@@ -96,7 +95,7 @@ function get_mat_for_vahid(allmoths,m)
 end
 
 ##
-dir = "/home/doshna/Desktop/TetheredFeeding_MotorProgram/"
+dir = "/home/doshna/Desktop/Vahid_MP/"
 
 for m in moths 
     pr,po = get_mat_for_vahid(allmoths,m)
