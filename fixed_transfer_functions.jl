@@ -32,6 +32,7 @@ set_theme!(theme)
 freqqs = [0.200, 0.300, 0.500, 0.700, 1.100, 1.300, 1.700, 1.900, 2.300, 2.900, 3.700, 4.300, 5.300, 6.100, 7.900, 8.900, 11.30, 13.70]
 ##
 moth = collect(keys(allmoths))[1]
+out = Dict()
 for moth in collect(keys(allmoths))
     pr,po = transfer_function(allmoths,moth;axis="tz")
 
@@ -47,4 +48,15 @@ for moth in collect(keys(allmoths))
     scatter!(ax2,freqqs,unpo,color=:firebrick)
     ax.title=moth
     save("fixed_tf/$moth.png",f)
+    out[moth] = Dict()
+    out[moth]["pre"] = pr
+    out[moth]["post"] = po
+    out[moth]["change"] = abs.(po) ./ abs.(pr)
 end
+##
+mat = freqqs 
+for moth in sort(collect(keys(allmoths)))
+    mat = hcat(mat,out[moth]["change"])
+end
+mat_raw = mat[:,2:end]
+means = mean(mat_raw,dims=1)

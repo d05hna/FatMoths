@@ -369,6 +369,9 @@ function read_ind(datadir,moth,wb_method)
     end
 ##
 
+# mean_data.color = [(x == "pre") ? :steelblue : :firebrick for x in mean_data.condition
+
+# Yaw Gains
 function get_side_slips(datadir,moth,params,trials)
     ftnames = ["fx","fy","fz","tx","ty","tz"]
     files = glob("*.h5",joinpath(datadir,moth))
@@ -381,6 +384,9 @@ function get_side_slips(datadir,moth,params,trials)
 
     return(pre_fx,post_fx)
 end
+
+##
+
 ##
 function get_tracking_fig(pre,post,fs=1e4)
     time = range(0,10,length(pre))
@@ -754,7 +760,7 @@ function transfer_function(allmoths, moth;axis="fx")
     post = sfxpost ./ sstimpost
     return pre,post
 end
-function add_relpos_column(df)
+function add_relpos_column!(df)
     groups = groupby(df, [:moth, :trial])
     
     result = DataFrame()
@@ -779,7 +785,6 @@ function add_relpos_column(df)
         end
         append!(result, group_copy)
     end
-    
     return result
 end
 function add_relfx_column!(df)
@@ -1003,4 +1008,160 @@ function get_mean_changes_yaw(allmoths)
     end
     ##
     return(mean_changes)
+end
+
+"""
+Stats Functions for Tracking::: 
+
+ 
+Stats: Methods From Roth...Cowan 2011 Electric Fish JEB
+Mean Values: Fit 2D Gaussian in complex plain per Frequency and use that mean a + bi to get mean gain and phase_fx
+95% Confidence for Gain: bounds of radii rlo and rhi that between them contain 95% of the mass of the Gaussian
+CI for Phase: angle (theta) of a wedge that contains 95% of mass of Gaussian, angle theta is +- confidence for phase
+
+"""
+
+
+function tracking_error(x::Complex)
+    r = real(x) 
+    i = imag(x) 
+    er = sqrt((1-r)^2 + (0-i)^2)
+    return er
+end
+function mean_ci_tdist(x; alpha=0.05)
+    n = length(x)
+    μ̂ = mean(x)
+    s  = std(x; corrected=true)
+    tcrit = quantile(TDist(n-1), 1 - alpha/2)
+    half = tcrit * s / sqrt(n)
+    return μ̂, μ̂ - half, μ̂ + half
+end
+function minimal_annulus(r::AbstractVector{<:Real}; mass=0.95)
+    """
+    minimal_annulus(r; mass=0.95)
+
+    Given radii `r` (e.g., magnitudes of Transfer at given Freq), return the
+    narrowest interval [r_lo, r_hi] that contains `mass` of the samples.
+    """
+
+    n = length(r)
+    @assert n > 0
+    w = ceil(Int, mass * n)
+    rs = sort(r)
+    best_lo, best_hi = rs[1], rs[w]
+    best_width = best_hi - best_lo
+    for i in 2:(n - w + 1)
+        lo, hi = rs[i], rs[i + w - 1]
+        width = hi - lo
+        if width < best_width
+            best_width = width
+            best_lo, best_hi = lo, hi
+        end
+    end
+    return best_lo, best_hi
+end
+
+
+function circular_wedge(theta::AbstractVector{<:Real}; mass=0.95)
+
+    """
+        circular_wedge(θ; mass=0.95)
+
+    Given angles `θ` (in radians), return the narrowest arc [θ_lo, θ_hi] that
+    contains `mass` of the samples. Output is in radians, with wrap-around handled.
+    """
+
+    n = length(theta)
+    @assert n > 0
+    w = ceil(Int, mass * n)
+    # Map to [0, 2π), sort, and duplicate with +2π to handle wrap-around windowing
+    th = sort(mod.(theta, 2π))
+    th2 = vcat(th, th .+ 2π)
+    best_lo, best_hi = th2[1], th2[w]
+    best_span = best_hi - best_lo
+    idx_lo = 1
+    for i in 2:length(th)
+        lo = th2[i]
+        hi = th2[i + w - 1]
+        span = hi - lo
+        if span < best_span
+            best_span = span
+            best_lo, best_hi = lo, hi
+            idx_lo = i
+        end
+    end
+
+    θ_lo = mod(best_lo + π, 2π) - π
+    θ_hi = θ_lo + best_span
+    return θ_lo, θ_hi
+end
+
+
+function mean_and_ci(phasors::AbstractVector{<:Complex}; mass=0.95, nsamples=100_000)
+
+    """
+        mean_and_ci(phasors; mass=0.95, nsamples=100_000)
+
+    Given a vector of complex phasors (one per trial at a fixed frequency),
+    fit a 2D Gaussian on (Re, Im), propagate to the mean (Σ / N),
+    then return:
+    - mean phasor (μ̂)
+    - 95% CI for magnitude as [r_lo, r_hi]
+    - 95% CI for phase as [θ_lo, θ_hi] (radians)
+    """
+    N = length(phasors)
+    @assert N ≥ 2 "Need at least 2 trials to estimate covariance"
+
+    zre = real.(phasors)
+    zim = imag.(phasors)
+    μ = mean(phasors)
+
+    # 2x2 sample covariance of [Re z, Im z]
+    Z = hcat(zre, zim)
+    Σ = cov(Z; corrected=true)                # unbiased covariance
+    Σμ = Σ ./ N                               # covariance of the sample mean
+
+    # Monte Carlo the mean distribution: N(μ_vec, Σμ)
+    μ_vec = [real(μ), imag(μ)]
+    d = MvNormal(μ_vec, Symmetric(Σμ))
+    S = rand(d, nsamples)                     # 2 x nsamples
+    z_samples = @views complex.(S[1, :], S[2, :])
+
+    r = abs.(z_samples)
+    θ = angle.(z_samples)
+
+    r_lo, r_hi   = minimal_annulus(r; mass)
+    θ_lo, θ_hi   = circular_wedge(θ; mass)
+
+    return μ, ( abs(abs.(μ) -r_lo),abs(abs(abs.(μ) -r_lo))), (abs.(angle(μ) - θ_lo  ),abs.(angle(μ) - θ_lo  ) )
+end
+
+function tf_freq(x,y,freqqs,fs)
+    """
+    take in x(stimulus), y (moth out), freqqs you care about and fs 
+    returns 1x (len(freqqs)) complex vector of h at those freqqs 
+    """
+    # interpolate if stim is still 3000 not 100000 
+    if length(x) != length(y) 
+        itp = interpolate(x, BSpline(Linear()))
+        x = itp(LinRange(1, length(itp), Int(1e5)))
+    end 
+    ftx = fft(x)
+    fty = fft(y) 
+    h = fty ./ ftx 
+    fr = round.(fftfreq(length(x),Int(fs)),digits=4) 
+    idx = [findfirst(==(x), fr) for x in freqqs]
+    h_idx = h[idx]
+    return h_idx 
+end
+
+function unwrap_negative(phases::AbstractVector{<:Real})
+    unwrapped = copy(phases)
+    for i in 2:length(unwrapped)
+        Δ = unwrapped[i] - unwrapped[i-1]
+        if Δ > π        # big positive jump → push downward
+            unwrapped[i:end] .-= 2π
+        end
+    end
+    return unwrapped
 end

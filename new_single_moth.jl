@@ -17,8 +17,8 @@ using JLD2
 using ProgressMeter
 using Statistics 
 using StatsBase
-include("/home/doshna/Documents/PHD/comparativeMPanalysis/functions.jl")
-include("/home/doshna/Documents/PHD/comparativeMPanalysis/readAndPreprocessFunctions.jl")
+include("/home/doshna/Documents/PHD/comparativeMPanalysis_bmd/functions.jl")
+include("/home/doshna/Documents/PHD/comparativeMPanalysis_bmd/readAndPreprocessFunctions.jl")
 include("me_functions.jl")
 GLMakie.activate!()
 theme = theme_dark()
@@ -53,11 +53,13 @@ phase_wrap_thresh = Dict(
         "2025_01_30" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
         "2025_03_20" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
         "2025_04_02" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
+        "2025_09_19" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
 
         )
 )
+cheby_bandpass = bp = digitalfilter(Bandpass(1000, 2000; fs=fs), Chebyshev1(4, 4))
 
-cheby_bandpass = digitalfilter(Bandpass(z_bandpass...), Chebyshev1(4, 4),fs=fs)
+
 
 muscle_names = ["lax","lba","lsa","ldvm","ldlm",
 "rdlm","rdvm","rsa","rba","rax"]
@@ -76,17 +78,18 @@ gtp = Dict(
     "2025_01_30" => [1,2,1e5,1.5e5],
     "2025_03_20" => [1,2,5e4,5e4],
     "2025_04_02" => [1,2,5e4,1e5],
+    "2025_09_19" => [1,5,1e5,1]
 
 
 )
 
 ##
-moth = "2024_11_05"
+moth = "2025_09_19"
 df = DataFrame()
 params = Dict()
 df_ft_all = DataFrame()
 read_individual!(joinpath(data_dir,moth),df,df_ft_all,params,wb_len_thresh,phase_wrap_thresh;cheby_bandpass=cheby_bandpass)
-df.time_abs .+= 30 
+df.time_abs .+= 30  
 ft_pre,ft_post = get_side_slips(data_dir,moth,params[moth],[Int(gtp[moth][1]),Int(gtp[moth][2])])
 ##
 """
@@ -103,7 +106,7 @@ post10all = ft_post[start_post:Int(start_post+1e5-1),:]
 
 pre10 = pre10all[:,1]
 post10 = post10all[:,1]
-
+##
 tris = convert(Vector{Int},[gtp[moth][1],gtp[moth][2]] .- 1)
 predf = df[df.trial.==tris[1],:]
 predf = predf[predf.time_abs .> start_pre /fs .&& predf.time_abs .< (start_pre-1+1e5)/fs,:]
@@ -118,7 +121,12 @@ df_to_use = vcat(predf,postdf,cols=:union)
 ## peak at the wb freq
 plot = data(df_to_use)*mapping(:wbfreq,color=:trial => renamer(["pre"=>"Before Feeding","post"=>"After Feeding"]))*histogram(bins=100,normalization=:probability)*visual(alpha=0.5) |> draw
 ## Take a look at mean z forces
-plot = data(df_to_use)*mapping(:fz,color=:trial => renamer(["pre"=>"Before Feeding","post"=>"After Feeding"]))*histogram(bins=100,normalization=:probability)*visual(alpha=0.5) |> draw
+f = Figure() 
+ax = Axis(f[1,1],xlabel="fz")
+density!(ax,pre10all[:,3],color=:steelblue,label="Before Feeding")
+density!(ax,post10all[:,3],color=:firebrick,label="After Feeding")
+axislegend(ax)
+f
 ## Take a look at Muscle Activities
 plot = data(df_to_use) * mapping(:phase,row=:muscle,color=:trial => renamer(["pre"=>"Before Feeding","post"=>"After Feeding"]))*histogram(bins=250,normalization=:probability)*visual(alpha=0.5) |> draw
 ## Take a Look at the frequency Responses 
