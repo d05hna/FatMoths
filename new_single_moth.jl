@@ -17,6 +17,7 @@ using JLD2
 using ProgressMeter
 using Statistics 
 using StatsBase
+using MultivariateStats
 include("/home/doshna/Documents/PHD/comparativeMPanalysis_bmd/functions.jl")
 include("/home/doshna/Documents/PHD/comparativeMPanalysis_bmd/readAndPreprocessFunctions.jl")
 include("me_functions.jl")
@@ -48,7 +49,7 @@ phase_wrap_thresh = Dict(
         "2024_11_07" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
         "2024_11_08" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
         "2024_11_11" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
-        "2024_11_20" => Dict("ax"=>2., "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
+        "2024_11_20" => Dict("ax"=>2., "badata"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
         "2025_01_14" => Dict("ax"=>2.9, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
         "2025_01_30" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
         "2025_03_20" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
@@ -57,7 +58,8 @@ phase_wrap_thresh = Dict(
 
         )
 )
-cheby_bandpass = bp = digitalfilter(Bandpass(1000, 2000; fs=fs), Chebyshev1(4, 4))
+z_bandpass = [5, 60]
+cheby_bandpass = digitalfilter(Bandpass(z_bandpass...), Chebyshev1(4, 4);fs = fs)
 
 
 
@@ -66,7 +68,7 @@ muscle_names = ["lax","lba","lsa","ldvm","ldlm",
 ft_names = ["fx","fy","fz","tx","ty","tz"]
 
 ##
-gtp = Dict(
+gtp = Dict(sum(data.validwb)
     ## Moth => Trial 1, Trial 2, Start 1, Start 2, Trials are 1 indexed
     "2024_11_01" => [2,4,1.5e5,1],
     "2024_11_04" => [2,4,1.5e5,1],
@@ -75,7 +77,7 @@ gtp = Dict(
     "2024_11_08" => [2,4,1e5,1],
     "2024_11_11" => [1,2,1,1],
     "2024_11_20" => [1,3,1e5,1.5e5],
-    "2025_01_30" => [1,2,1e5,1.5e5],
+    "2025_01_30" => [1,2,1e5,1.5e5],sum(data.validwb)
     "2025_03_20" => [1,2,5e4,5e4],
     "2025_04_02" => [1,2,5e4,1e5],
     "2025_09_19" => [1,5,1e5,1]
@@ -106,7 +108,7 @@ post10all = ft_post[start_post:Int(start_post+1e5-1),:]
 
 pre10 = pre10all[:,1]
 post10 = post10all[:,1]
-##
+
 tris = convert(Vector{Int},[gtp[moth][1],gtp[moth][2]] .- 1)
 predf = df[df.trial.==tris[1],:]
 predf = predf[predf.time_abs .> start_pre /fs .&& predf.time_abs .< (start_pre-1+1e5)/fs,:]
