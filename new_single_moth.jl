@@ -49,12 +49,19 @@ phase_wrap_thresh = Dict(
         "2024_11_07" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
         "2024_11_08" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
         "2024_11_11" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
-        "2024_11_20" => Dict("ax"=>2., "badata"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
+        "2024_11_20" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
         "2025_01_14" => Dict("ax"=>2.9, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
         "2025_01_30" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
         "2025_03_20" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
         "2025_04_02" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
         "2025_09_19" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
+        "2025_10_10" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
+        "2025_10_13" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
+        "2025_10_14" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
+        "2025_10_16" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
+        "2025_10_17" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
+        "2025_10_22" => Dict("ax"=>2.0, "ba"=>2.0, "sa"=>2.7, "dvm"=>2.41, "dlm"=>2.7),
+
 
         )
 )
@@ -68,7 +75,7 @@ muscle_names = ["lax","lba","lsa","ldvm","ldlm",
 ft_names = ["fx","fy","fz","tx","ty","tz"]
 
 ##
-gtp = Dict(sum(data.validwb)
+gtp = Dict(
     ## Moth => Trial 1, Trial 2, Start 1, Start 2, Trials are 1 indexed
     "2024_11_01" => [2,4,1.5e5,1],
     "2024_11_04" => [2,4,1.5e5,1],
@@ -77,20 +84,28 @@ gtp = Dict(sum(data.validwb)
     "2024_11_08" => [2,4,1e5,1],
     "2024_11_11" => [1,2,1,1],
     "2024_11_20" => [1,3,1e5,1.5e5],
-    "2025_01_30" => [1,2,1e5,1.5e5],sum(data.validwb)
+    "2025_01_30" => [1,2,1e5,1.5e5],
     "2025_03_20" => [1,2,5e4,5e4],
     "2025_04_02" => [1,2,5e4,1e5],
-    "2025_09_19" => [1,5,1e5,1]
+    "2025_09_19" => [1,5,1e5,1],
+    "2025_10_10" => [1,3,1e5,1],
+    "2025_10_13" => [3,4,1,1e5],
+    "2025_10_14" => [1,3,1,1e5],
+    "2025_10_16" => [1,5,1,1],
+    "2025_10_17" => [2,3,1,1.5e5],
+    "2025_10_22" => [1,3,1,1e5]
+
+
 
 
 )
 
 ##
-moth = "2025_09_19"
+moth = "2025_10_22"
 df = DataFrame()
 params = Dict()
 df_ft_all = DataFrame()
-read_individual!(joinpath(data_dir,moth),df,df_ft_all,params,wb_len_thresh,phase_wrap_thresh;cheby_bandpass=cheby_bandpass)
+read_individual!(joinpath(data_dir,moth),df,df_ft_all,params,wb_len_thresh,phase_wrap_thresh;cheby_bandpass=cheby_bandpass,fatmoths=true)
 df.time_abs .+= 30  
 ft_pre,ft_post = get_side_slips(data_dir,moth,params[moth],[Int(gtp[moth][1]),Int(gtp[moth][2])])
 ##
@@ -106,9 +121,9 @@ start_post = Int(gtp[moth][4])
 pre10all = ft_pre[start_pre:Int(start_pre+1e5-1),:]
 post10all = ft_post[start_post:Int(start_post+1e5-1),:]
 
-pre10 = pre10all[:,1]
-post10 = post10all[:,1]
-
+pre10 = pre10all[:,6]
+post10 = post10all[:,6]
+ 
 tris = convert(Vector{Int},[gtp[moth][1],gtp[moth][2]] .- 1)
 predf = df[df.trial.==tris[1],:]
 predf = predf[predf.time_abs .> start_pre /fs .&& predf.time_abs .< (start_pre-1+1e5)/fs,:]
@@ -208,7 +223,7 @@ moths = collect(keys(gtp))
     df = DataFrame()
     params = Dict()
     df_ft_all = DataFrame()
-    read_individual!(joinpath(data_dir,moth),df,df_ft_all,params,wb_len_thresh,phase_wrap_thresh;cheby_bandpass=cheby_bandpass)
+    read_individual!(joinpath(data_dir,moth),df,df_ft_all,params,wb_len_thresh,phase_wrap_thresh;cheby_bandpass=cheby_bandpass,fatmoths=true)
     df.time_abs .+= 30 
     ft_pre,ft_post = get_side_slips(data_dir,moth,params[moth],[Int(gtp[moth][1]),Int(gtp[moth][2])])
 
@@ -254,3 +269,9 @@ moths = collect(keys(gtp))
     end
     @save "/home/doshna/Documents/PHD/FatMoths/fat_moths_set_1.jld" allmoths
 end
+##
+theme.palette = (color = ColorSchemes.tab20,)
+# theme.palette = (color = paired_10_colors)
+set_theme!(theme)
+mc = get_mean_changes(allmoths;axis=5)
+plot = data(mc)*mapping(:mean_fz,:mean_gain,color=:moth)*visual(markersize=15)|>draw

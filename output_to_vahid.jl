@@ -17,19 +17,10 @@ using JLD2
 using ProgressMeter
 using Statistics 
 using StatsBase
-include("/home/doshna/Documents/PHD/comparativeMPanalysis/functions.jl")
-include("/home/doshna/Documents/PHD/comparativeMPanalysis/readAndPreprocessFunctions.jl")
+include("/home/doshna/Documents/PHD/comparativeMPanalysis_bmd/functions.jl")
+include("/home/doshna/Documents/PHD/comparativeMPanalysis_bmd/readAndPreprocessFunctions.jl")
 include("me_functions.jl")
-GLMakie.activate!()
-theme = theme_dark()
-theme.textcolor=:white
-theme.ytickfontcolor=:white
-theme.fontsize= 16
-theme.gridcolor=:white
-theme.gridalpga=1
-theme.palette = (color = [:turquoise,:coral],)
-# theme.palette = (color = paired_10_colors)
-set_theme!(theme)
+=
 ##
 @load "fat_moths_set_1.jld" allmoths
 ##
@@ -95,11 +86,14 @@ function get_mat_for_vahid(allmoths,m)
 end
 
 ##
+mc = get_mean_changes(allmoths;axis=6)
+moths = mc[mc.mean_gain .> 25,:moth]
+##
 dir = "/home/doshna/Desktop/Vahid_MP/"
 
 for m in moths 
     pr,po = get_mat_for_vahid(allmoths,m)
-    save(joinpath(dir,"$(m)_LOW.csv"),pr)
-    save(joinpath(dir,"$(m)_HIGH.csv"),po)
+    CSV.write(joinpath(dir,"$(m)_LOW.csv"),pr)
+    CSV.write(joinpath(dir,"$(m)_HIGH.csv"),po)
 end
 

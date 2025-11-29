@@ -7,7 +7,7 @@ using Printf
 using JLD2
 using HDF5
 ## get the files
-datadir = "/media/doshna/My Passport/DOSHNA/FatMoths/Videos/Flower"
+datadir ="/media/doshna/PutSponDosh/DOSHNA/FatMoths/Videos/Flower"
 
 files = sort(getindex.(split.(Glob.glob("*.csv",datadir),"/"), 9 ))
 

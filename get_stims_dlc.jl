@@ -21,9 +21,17 @@ gtp = Dict(
     "2025_01_30" => [1,2,1e5,1.5e5],
     "2025_03_20" => [1,2,5e4,5e4],
     "2025_04_02" => [1,2,5e4,1e5],
+    "2025_09_19" => [1,5,1e5,1],
+    "2025_10_10" => [1,3,1e5,1],
+    "2025_10_13" => [3,4,1,1e5],
+    "2025_10_14" => [1,3,1,1e5],
+    "2025_10_16" => [1,5,1,1],
+    "2025_10_17" => [2,3,1,1.5e5]
+
 
 
 )
+
 ##
 @load "fat_moths_set_1.jld" allmoths
 datadir = "/home/doshna/Documents/PHD/data/fatties/"
@@ -58,6 +66,6 @@ for moth in collect(keys(allmoths))
         allmoths[moth]["stim$(tri)"] = flower_pos_smooth
         allmoths[moth]["vel$(tri)"] = flower_vel_smooth
     end
-end
+end 
 @save "fat_moths_set_1.jld" allmoths
 ##

@@ -19,6 +19,7 @@ using GLM
 using SavitzkyGolay
 using MultivariateStats
 using Distributions
+using ColorSchemes
 # using CairoMakie
 using HypothesisTests
 include("/home/doshna/Documents/PHD/comparativeMPanalysis_bmd/functions.jl")
@@ -26,7 +27,7 @@ include("me_functions.jl")
 GLMakie.activate!()
 theme = theme_minimal()
 # theme.palette = (; color = ColorSchemes.tab20)
-theme.palette = (; color = [:firebrick,:steelblue])
+# theme.palette = (; color = [:firebrick,:steelblue])
 theme.fontsize = 20
 theme.font = GLMakie.to_font("Dejavu")
 set_theme!(theme)
@@ -39,9 +40,11 @@ pixel_conversion = 0.14 ## mm/pixels
 freqqs = [0.2000,0.3000,0.5000,0.7000,1.100,1.300,1.700,1.900,2.300,2.900,3.700,4.300,5.300,6.100,7.900,8.900,11.30,13.70]
 fs = Int(1e4)
 only_fz = true
+delete!(allmoths,"2025_10_22")
+delete!(allmoths,"2025_10_21")
 ##
-mc = get_mean_changes(allmoths)
-changed_moths = mc[mc.mean_fz .> 0.05,:moth]
+mc = get_mean_changes_zscore(allmoths)
+changed_moths = mc[mc.mean_gain .> 0.,:moth]
 
 if only_fz 
     moths = changed_moths 
@@ -61,15 +64,19 @@ yawf = zeros(ComplexF64,length(freqqs),n_moths)
 for (i,m) in enumerate(moths)
     stimpre = allmoths[m]["stimpre"]
     stimpost = allmoths[m]["stimpost"]
-    fxpre = allmoths[m]["ftpre"][:,1]
-    fxpost = allmoths[m]["ftpos"][:,1]
-    yawpre = allmoths[m]["ftpre"][:,6]
-    yawpost = allmoths[m]["ftpos"][:,6]
+    pre = allmoths[moth]["ftpre"]
+    post = allmoths[moth]["ftpos"]
 
-    Fxi[:,i] = tf_freq(stimpre,fxpre,freqqs,fs)
-    Fxf[:,i] = tf_freq(stimpost,fxpost,freqqs,fs)
-    yawi[:,i] = tf_freq(stimpre,yawpre,freqqs,fs)
-    yawf[:,i] = tf_freq(stimpost,yawpost,freqqs,fs)
+    for i in 1:6 
+        pre[:,i] = zscore(pre[:,i])
+        post[:,i] = zscore(post[:,i])
+    end
+    pre = sum(pre[:,[1,6]],dims=2)[:] # fz yaw  combined
+    post = sum(post[:,[1,6]],dims=2)[:]
+
+    Fxi[:,i] = tf_freq(stimpre,pre,freqqs,fs)
+    Fxf[:,i] = tf_freq(stimpost,post,freqqs,fs)
+
 end
 ## Get the stats
 XI = DataFrame()
@@ -79,8 +86,8 @@ YF = DataFrame()
 for i in 1:16
     hi = Fxi[i,:]
     hf = Fxf[i,:]
-    ci = yawi[i,:]
-    cf = yawf[i,:]
+    # ci = yawi[i,:]
+    # cf = yawf[i,:]
 
     m,r,t = mean_and_ci(hi)
     te,tel,teh = mean_ci_tdist(tracking_error.(hi))
@@ -112,42 +119,42 @@ for i in 1:16
         "high_error" => teh
     )
     push!(XF,tmp,cols=:union)
-    m,r,t = mean_and_ci(ci)
-    te,tel,teh = mean_ci_tdist(tracking_error.(ci))
-    tmp = Dict(
-        "freq" => freqqs[i],
-        "mean_gain" => abs.(m),
-        "mean_phase" => angle.(m),
-        "g_lo" => r[1],
-        "g_hi" => r[2],
-        "p_lo" => t[1],
-        "p_hi" => t[2],
-        "mean_error" => te,
-        "low_error" => tel,
-        "high_error" => teh
-    )
-    push!(YI,tmp,cols=:union)
-    m,r,t = mean_and_ci(cf)
-    te,tel,teh = mean_ci_tdist(tracking_error.(cf))
-    tmp = Dict(
-        "freq" => freqqs[i],
-        "mean_gain" => abs.(m),
-        "mean_phase" => angle.(m),
-        "g_lo" => r[1],
-        "g_hi" => r[2],
-        "p_lo" => t[1],
-        "p_hi" => t[2],
-        "mean_error" => te,
-        "low_error" => tel,
-        "high_error" => teh
-    )
-    push!(YF,tmp,cols=:union)
+    # m,r,t = mean_and_ci(ci)
+    # te,tel,teh = mean_ci_tdist(tracking_error.(ci))
+    # tmp = Dict(
+    #     "freq" => freqqs[i],
+    #     "mean_gain" => abs.(m),
+    #     "mean_phase" => angle.(m),
+    #     "g_lo" => r[1],
+    #     "g_hi" => r[2],
+    #     "p_lo" => t[1],
+    #     "p_hi" => t[2],
+    #     "mean_error" => te,
+    #     "low_error" => tel,
+    #     "high_error" => teh
+    # )
+    # push!(YI,tmp,cols=:union)
+    # m,r,t = mean_and_ci(cf)
+    # te,tel,teh = mean_ci_tdist(tracking_error.(cf))
+    # tmp = Dict(
+    #     "freq" => freqqs[i],
+    #     "mean_gain" => abs.(m),
+    #     "mean_phase" => angle.(m),
+    #     "g_lo" => r[1],
+    #     "g_hi" => r[2],
+    #     "p_lo" => t[1],
+    #     "p_hi" => t[2],
+    #     "mean_error" => te,
+    #     "low_error" => tel,
+    #     "high_error" => teh
+    # )
+    # push!(YF,tmp,cols=:union)
 end
 
 XI.mean_phase = unwrap_negative(XI.mean_phase)
 XF.mean_phase = unwrap_negative(XF.mean_phase)
-YI.mean_phase = unwrap_negative(YI.mean_phase)
-YF.mean_phase = unwrap_negative(YF.mean_phase)
+# YI.mean_phase = unwrap_negative(YI.mean_phase)
+# YF.mean_phase = unwrap_negative(YF.mean_phase)
 
 
 
@@ -220,7 +227,7 @@ ax4.xlabelfont=:bold
 # ax6.xlabel = "Frequency (Hz)"
 # ax6.limits=(nothing,nothing,0,1)
 Legend(f[3,1:2],ax,orientation=:horizontal)
-save("Figs/NewTrackingFigs/BigTracking_CI.png",f,px_per_unit=4)
+# save("Figs/NewTrackingFigs/BigTracking_CI.png",f,px_per_unit=4)
 f
 ## gain multiples restricted 
 
@@ -373,4 +380,246 @@ lines!(ax, fr[2:200],abs.(ff)[2:200])
 vlines!(ax,freqqs,linestyle=:dash,alpha=0.3)
 f
 ##
-GLMakie.to_font("Dejavu")
+"""
+Can we do PCA to combine things to get the variation we want 
+"""
+pc_num = 1
+out = DataFrame() 
+for m in collect(keys(allmoths))
+    fpre = allmoths[m]["ftpre"]
+    fpo = allmoths[m]["ftpos"]
+    comb = vcat(fpre,fpo)
+    for i in 1:6 
+        comb[:,i] = zscore(comb[:,i])
+    end
+    pcs = fit(MultivariateStats.PCA,comb')
+    latspre = pcs.proj' * fpre'
+    latspo = pcs.proj' * fpo'
+
+    h_low = tf_freq(allmoths[m]["stimpre"],latspre[pc_num,:],freqqs,fs)
+    h_high = tf_freq(allmoths[m]["stimpost"],latspo[pc_num,:],freqqs,fs)
+    mean_gain  = mean(abs.(h_high) ./ abs.(h_low))
+    tmp = DataFrame(freq = freqqs, h_low = h_low,h_high = h_high)
+    tmp.moth .= m 
+    tmp.proj .= [pcs.proj]
+    tmp.mean_gain .= mean_gain 
+    ve = pcs.prinvars ./ pcs.tvar 
+    tmp.ve .= ve[pc_num]
+    out = vcat(out,tmp,cols=:union)
+    t = range(0,10,length=Int(1e5))
+    f = Figure() 
+    ax = Axis(f[1,1],xlabel="pc1",ylabel="pc2",title="$m Low Mass")
+    scatter!(ax,latspre[1,:],latspre[2,:],color=t,markersize=1,alpha=0.7)
+    ax2 = Axis(f[2,1],xlabel="pc1",ylabel="pc2",title = "$m High Mass")
+    d = scatter!(ax2,latspo[1,:],latspo[2,:],color=t,markersize=1,alpha=0.7)
+    Colorbar(f[1:2,2],d,label="Time")
+    save("Figs/NewTrackingFigs/PCA/proj_$m.png",f)
+    f = Figure() 
+    ax = Axis(f[1,1],xscale=log10,yscale=log10)
+    lines!(ax,freqqs,abs.(h_low),label="low",linewidth=4,color=:steelblue)
+    lines!(ax,freqqs,abs.(h_high),label="high",linewidth=4,color=:firebrick)
+
+    axislegend(ax,position=:lt)
+    ax.title = m
+    ax2 = Axis(f[2,1],xscale=log10)
+    lines!(ax2,freqqs,unwrap_negative(angle.(h_low)),color=:steelblue,linewidth=4)
+    lines!(ax2,freqqs,unwrap_negative(angle.(h_high)),color=:firebrick,linewidth=4)
+
+    f 
+    save("Figs/NewTrackingFigs/PCA/$m.png",f,px_per_unit=4)
+end
+
+##
+mg = unique(select(out,:moth,:mean_gain,:ve))
+rename!(mg,["moth","pc_gain","ve"])
+mc = get_mean_changes(allmoths)
+leftjoin!(mc,mg,on=:moth)
+
+plot=data(mc)*mapping(:ve,:pc_gain,color=:moth)*visual(markersize=20)
+f = draw(plot, axis=(; title="Pc 1",xlabel="ve"))
+save("Figs/NewTrackingFigs/PCA/ve_pc1.png",f)
+f
+##
+hi = out[out.mean_gain.>1.5,:]
+mean_hi = combine(groupby(hi,:freq)) do gdf 
+    (
+        g_low = abs.(mean(gdf.h_low)),
+        g_high = abs.(mean(gdf.h_high)),
+        p_low = angle.(mean(gdf.h_low)),
+        p_high = angle.(mean(gdf.h_high)),
+    )
+end
+mean_hi.p_low = unwrap(mean_hi.p_low .- pi)
+mean_hi.p_high = unwrap(mean_hi.p_high)
+
+f = Figure() 
+ax = Axis(f[1,1],xscale=log10,yscale=log10,title="gain")
+lines!(ax,mean_hi.freq,mean_hi.g_low,color=:steelblue,linewidth=4)
+lines!(ax,mean_hi.freq,mean_hi.g_high,color=:firebrick,linewidth=4)
+ax2 = Axis(f[2,1],xscale=log10,title="phase")
+lines!(ax2,mean_hi.freq,mean_hi.p_low,color=:steelblue,linewidth=4)
+lines!(ax2,mean_hi.freq,mean_hi.p_high,color=:firebrick,linewidth=4)
+f
+
+## 
+projs = unique(select(out,:moth,:mean_gain,:proj))
+# Define names for rows and columns
+f_names = ["fx", "fy", "fz", "tx", "ty", "tz"]
+pc_nums = 1:5
+
+# Expand each matrix into long format
+rows = []
+for r in eachrow(projs)
+    mat = r.proj
+    for (i, f) in enumerate(f_names), (j, pc) in enumerate(pc_nums)
+        push!(rows, (
+            moth = r.moth,
+            mean_gain = r.mean_gain,
+            f_name = f,
+            pc_num = pc,
+            proj_weight = abs.(mat[i, j])
+        ))
+    end
+end
+
+tidy = DataFrame(rows)
+
+##
+plot = data(tidy)*mapping(:pc_num,:f_name,:proj_weight,layout=:moth)*visual(Heatmap) |> draw
+##
+"""
+If I filter out everything above 20 hz should maximize whats going on for tracking
+"""
+pc_num=1
+cutoff = 15
+lp = digitalfilter(Lowpass(cutoff),Butterworth(5);fs=fs)
+t = range(0,10,length=100000)
+out = DataFrame() 
+for m in collect(keys(allmoths))
+    fpre = filtfilt(lp,allmoths[m]["ftpre"])
+    fpo = filtfilt(lp,allmoths[m]["ftpos"])
+    comb = vcat(fpre,fpo)
+    for i in 1:6 
+        comb[:,i] = zscore(comb[:,i])
+    end
+    pcs = fit(MultivariateStats.PCA,comb')
+    latspre = pcs.proj' * fpre'
+    latspo = pcs.proj' * fpo'
+
+    h_low = tf_freq(allmoths[m]["stimpre"],latspre[pc_num,:],freqqs,fs)
+    h_high = tf_freq(allmoths[m]["stimpost"],latspo[pc_num,:],freqqs,fs)
+    mean_gain  = mean(abs.(h_high) ./ abs.(h_low))
+    tmp = DataFrame(freq = freqqs, h_low = h_low,h_high = h_high)
+    tmp.moth .= m 
+    tmp.proj .= [pcs.proj]
+    tmp.mean_gain .= mean_gain 
+    ve = pcs.prinvars ./ pcs.tvar 
+    tmp.ve .= ve[pc_num]
+    out = vcat(out,tmp,cols=:union)
+    f = Figure() 
+    ax = Axis(f[1,1],xlabel="pc1",ylabel="pc2",title="$m Low Mass")
+    scatter!(ax,latspre[1,:],latspre[2,:],color=t,markersize=1,alpha=0.7)
+    ax2 = Axis(f[2,1],xlabel="pc1",ylabel="pc2",title = "$m High Mass")
+    d = scatter!(ax2,latspo[1,:],latspo[2,:],color=t,markersize=1,alpha=0.7)
+    Colorbar(f[1:2,2],d,label="Time")
+    save("Figs/NewTrackingFigs/PCA/Filt/proj_$m.png",f)
+    f = Figure() 
+    ax = Axis(f[1,1],xscale=log10,yscale=log10)
+    lines!(ax,freqqs,abs.(h_low),label="low",linewidth=4,color=:steelblue)
+    lines!(ax,freqqs,abs.(h_high),label="high",linewidth=4,color=:firebrick)
+
+    axislegend(ax,position=:lt)
+    ax.title = m
+    ax2 = Axis(f[2,1],xscale=log10)
+    lines!(ax2,freqqs,unwrap_negative(angle.(h_low)),color=:steelblue,linewidth=4)
+    lines!(ax2,freqqs,unwrap_negative(angle.(h_high)),color=:firebrick,linewidth=4)
+
+    f 
+    save("Figs/NewTrackingFigs/PCA/Filt/$m.png",f,px_per_unit=4)
+end
+mg = unique(select(out,:moth,:mean_gain,:ve))
+rename!(mg,["moth","pc_gain","ve"])
+mc = get_mean_changes(allmoths)
+leftjoin!(mc,mg,on=:moth)
+
+plot=data(mc)*mapping(:ve,:pc_gain,color=:moth)*visual(markersize=20)
+f = draw(plot, axis=(; title="Pc 1",xlabel="ve"))
+# save("Figs/NewTrackingFigs/PCA/ve_pc3.png",f)
+f
+##
+cutoff = 15
+lp = digitalfilter(Lowpass(cutoff),Butterworth(6);fs=fs)
+t = range(0,10,length=Int(1e5))
+m = "2024_11_08"
+fpre = filtfilt(lp,allmoths[m]["ftpre"])
+fpo = filtfilt(lp,allmoths[m]["ftpos"])
+comb = vcat(fpre,fpo)
+for i in 1:6 
+    comb[:,i] = zscore(comb[:,i])
+end
+pcs = fit(MultivariateStats.PCA,comb')
+latspre = pcs.proj' * fpre'
+latspo = pcs.proj' * fpo'
+##
+stimpo = allmoths[m]["stimpost"]
+itp = interpolate(stimpo, BSpline(Linear()))
+x = itp(LinRange(1, length(itp), Int(1e5)))
+
+ft = fft(latspre[2,:])
+fr = fftfreq(Int(1e5),Int(1e4))
+fig,ax,plt = scatter(latspo[1,:],latspo[2,:])
+# Colorbar(fig[1,2],plt)
+fig
+# fig,ax,plt = lines(fr[2:400],abs.(ft)[2:400])
+# ax.xscale=log10
+# ax.xticks = [1,10,20]
+# fig
+##
+
+
+points = Observable(Point2f[])
+colors = Observable(Float32[])
+trail=400
+
+fig,ax,plt = scatter(points; markersize=10,alpha=0.75)
+limits!(ax,extrema(latspo[1, :])..., extrema(latspo[2, :])...)
+frames = 1:10000
+record(fig, "Figs/latspo_filt.mp4", frames; framerate=100) do frame
+start_idx = max(1, frame - trail + 1)
+    window = start_idx:frame
+
+    # Only keep the last m points
+    points[] = Point2f.(latspo[1, window], latspo[2, window])
+
+    notify(points)
+end
+##
+stimpo = allmoths[m]["stimpost"]
+itp = interpolate(stimpo, BSpline(Linear()))
+x = itp(LinRange(1, length(itp), Int(1e5)))
+f =  Figure(size=(800,600))
+ax = Axis3(f[1,1],
+    xlabel= "pc1",
+    ylabel= "pc2",
+    zlabel="pc3")
+b = scatter!(ax,latspo[1,:],latspo[2,:],latspo[3,:],color=x)
+Colorbar(f[2,1],b,label="Flower Pos",vertical=false)
+f
+## 
+moth = "2024_11_08"
+pre = allmoths[moth]["ftpre"]
+post = allmoths[moth]["ftpos"]
+for i in 1:6 
+    pre[:,i] = zscore(pre[:,i])
+    post[:,i] = zscore(post[:,i])
+end
+pre = sum(pre[:,[1,6]],dims=2)[:] # fz yaw  combined
+post = sum(post[:,[1,6]],dims=2)[:]
+
+tfpre = tf_freq(allmoths[moth]["stimpre"],pre,freqqs,10000)
+tfpost = tf_freq(allmoths[moth]["stimpost"],post,freqqs,10000)
+f = Figure() 
+ax = Axis(f[1,1],xscale=log10)
+lines!(ax,freqqs, abs.(tfpre))
+lines!(ax,freqqs,abs.(tfpost))
+f

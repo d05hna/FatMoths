@@ -616,7 +616,6 @@ function get_mean_changes(allmoths;axis=1)
         fftpre = abs.(fft(pre)[2:50000])
         fftpost = abs.(fft(post)[2:50000])
         freqrange = round.(fftfreq(Int(1e5),fs)[2:50000],digits=4)
-        println(freqrange[1:20])
         d4t = all_data[all_data.moth.==moth,:]
         for f in freqqs
             id = findfirst(x -> x == f, freqrange)
@@ -646,7 +645,14 @@ function get_mean_changes(allmoths;axis=1)
         "2025_01_30" => Dict("pre"=>2.13, "post"=>2.546),
         "2025_03_20" => Dict("pre"=>2.246, "post"=>2.344),
         "2025_01_14" => Dict("pre" => 2.07, "post"=> 2.531),
-        "2025_04_02" => Dict("pre" => 1.7, "post"=> 1.916)
+        "2025_04_02" => Dict("pre" => 1.7, "post"=> 1.916),
+        "2025_09_19" => Dict("pre" => 1.93, "post"=> 2.20),
+        "2025_10_10" => Dict("pre" => 2.25, "post"=> 2.59),
+        "2025_10_13" => Dict("pre" => 1.782, "post"=> 2.002),
+        "2025_10_14" => Dict("pre" => 1.424, "post"=> 1.592),
+        "2025_10_16" => Dict("pre" => 2.237, "post"=> 2.811),
+        "2025_10_17" => Dict("pre" => 1.682, "post"=> 1.891),
+
       )
     ##
     function normalize_fz(row, ms, g)
@@ -1164,4 +1170,256 @@ function unwrap_negative(phases::AbstractVector{<:Real})
         end
     end
     return unwrapped
+end
+function get_mean_changes_zscore(allmoths)
+    fs = 1e4
+    moths = collect(keys(allmoths))
+    freqqs = [0.200, 0.300, 0.500, 0.700, 1.100, 1.300, 1.700, 1.900, 2.300, 2.900, 3.700, 4.300, 5.300]
+    peaks = DataFrame()
+    all_data = DataFrame()
+    for moth in moths 
+
+        d = allmoths[moth]["data"]
+        notpc = filter(col -> !contains(string(col), "_pc"), names(d))
+        sel = filter(x -> !(x in ["wbtime","pos","vel"]), notpc)
+        all_data=vcat(all_data,d[!,sel])
+    end
+
+    for moth in moths 
+        pre = allmoths[moth]["ftpre"]
+        post = allmoths[moth]["ftpos"]
+        for i in 1:6 
+            pre[:,i] = zscore(pre[:,i])
+            post[:,i] = zscore(post[:,i])
+        end
+        pre = pre[:,1] .+ -1 .* pre[:,6] .+ -1 .* pre[:,5] # fz yaw  combined
+        post = post[:,1] .+ -1 .* post[:,6] .+ -1 .* post[:,5]
+        fftpre = abs.(fft(pre))
+        fftpost = abs.(fft(post))
+        freqrange = round.(fftfreq(Int(1e5),fs),digits=4)
+        d4t = all_data[all_data.moth.==moth,:]
+        for f in freqqs
+            id = findfirst(x -> x == f, freqrange)
+
+            peakpre = fftpre[id]
+            peakpost = fftpost[id]
+            prdic = Dict("moth"=>moth,"freq" => f, "trial" => "pre", 
+                "peak" => peakpre, "fz" => mean(d4t[d4t.trial.=="pre",:fz]) )
+            podic = Dict("moth"=>moth,"freq" => f, "trial" => "post", 
+                "peak" => peakpost,"fz" => mean(d4t[d4t.trial.=="post",:fz]) )
+            push!(peaks,prdic,cols=:union)
+            push!(peaks,podic,cols=:union)
+        end
+    end
+    peaks.fz = peaks.fz .* -1 
+    ##
+    ##
+    g=9.81
+    ms = Dict(
+        "2024_11_01" => Dict("pre"=>1.912,"post"=>2.075),
+        "2024_11_04" => Dict("pre"=>2.149,"post"=>2.289),
+        "2024_11_05" => Dict("pre"=>2.190,"post"=>2.592),
+        "2024_11_07" => Dict("pre"=>1.801,"post"=>1.882),
+        "2024_11_08" => Dict("pre"=>2.047,"post"=>2.369),
+        "2024_11_11" => Dict("pre"=>1.810,"post"=>2.090),
+        "2024_11_20" => Dict("pre"=>1.512,"post"=>1.784),
+        "2025_01_30" => Dict("pre"=>2.13, "post"=>2.546),
+        "2025_03_20" => Dict("pre"=>2.246, "post"=>2.344),
+        "2025_01_14" => Dict("pre" => 2.07, "post"=> 2.531),
+        "2025_04_02" => Dict("pre" => 1.7, "post"=> 1.916),
+        "2025_09_19" => Dict("pre" => 1.93, "post"=> 2.20),
+        "2025_10_10" => Dict("pre" => 2.25, "post"=> 2.59),
+        "2025_10_13" => Dict("pre" => 1.782, "post"=> 2.002),
+        "2025_10_14" => Dict("pre" => 1.424, "post"=> 1.592),
+        "2025_10_16" => Dict("pre" => 2.237, "post"=> 2.811),
+        "2025_10_17" => Dict("pre" => 1.682, "post"=> 1.891),
+
+      )
+    ##
+    function normalize_fz(row, ms, g)
+        return row.fz / ((ms[row.moth]["pre"]/1000) * g)
+    end
+
+    peaks.norm_fz = map(row -> normalize_fz(row, ms, g), eachrow(peaks))
+
+    ##
+    grouped = groupby(peaks,[:moth,:freq])
+
+    changes = combine(grouped) do gdf 
+        pre_vals = filter(r -> r.trial == "pre",gdf)
+        post_vals = filter(r -> r.trial == "post",gdf)
+        
+        (
+            fz_change =  (mean(post_vals.norm_fz) - mean(pre_vals.norm_fz)) / abs(mean(pre_vals.norm_fz)),
+            gain_change = (mean(post_vals.peak) - mean(pre_vals.peak))/abs(mean(pre_vals.peak))*100
+        )
+    end
+
+    mean_changes = combine(groupby(changes, :moth),
+    :fz_change => mean => :mean_fz,
+    :gain_change => mean => :mean_gain
+    )
+    mean_changes.mass .= 0.
+    mean_changes.mass_change.=0.
+    for row in eachrow(mean_changes)
+        row.mass_change = ms[row.moth]["post"] - ms[row.moth]["pre"] 
+        row.mass = ms[row.moth]["pre"]
+    end
+    ##
+    return(mean_changes)
+end
+function get_ci_freaky(v::Vector{ComplexF64};ci=0.95)
+    pre = [[real(x),imag(x)] for x in v]
+    pre = reduce(hcat, pre)                       # Turn into 2×N matrix
+
+    pd_pre = fit(MvNormal,pre)
+
+
+
+    mu = mean(pd_pre)
+    mu_g = sqrt(mu[1]^2 + mu[2]^2)
+    mu_p = atan(mu[2],mu[1])
+    re = -3:0.01:3
+    ig = -3:0.01:3
+    g(x,y) = sqrt(x^2+y^2)
+    p(x,y) = atan(y,x)
+    g_delt = 0.01
+    sumg = 0 
+    while sumg < ci
+        gs = [pdf(pd_pre, [x, y])*0.0001 for (x, y) in Iterators.product(re, ig) if mu_g-g_delt <= g(x, y) <= mu_g + g_delt]
+        sumg = sum(gs)
+        g_delt += 0.01
+        if g_delt > 2
+            sumg = 1 
+            g_delt = 2
+        end
+    end
+    # Phase 95% CI 
+    sump = 0 
+    p_delt = 0.01
+    counter = 0 
+    while sump < ci
+        ps = [pdf(pd_pre, [x, y])*0.0001 for (x, y) in Iterators.product(re, ig) if mu_p-p_delt <= p(x, y) <= mu_p + p_delt]
+        sump = sum(ps)
+        p_delt += 0.01
+        counter += 1 
+        if p_delt > 2pi 
+            sump = 1 
+            p_delt = 2pi
+        end
+    end
+    return mu_g,mu_p,g_delt,p_delt
+end
+function unwrap_negative(ph)
+    ph = collect(ph)           # Ensure it's an array
+    unwrapped = similar(ph)
+    unwrapped[1] = ph[1]
+
+    offset = 0.0
+    for i in 2:length(ph)
+        # raw jump
+        dp = ph[i] - ph[i-1]
+
+        # If the jump is > +π, go negative
+        if dp > π
+            offset -= 2π
+        # If the jump is < −π, go positive
+        elseif dp < -π
+            offset += 2π
+        end
+g > 100
+        unwrapped[i] = ph[i] + offset
+    end
+
+    return unwrapped
+end
+
+
+
+
+function ci_low_n(x;level=0.95)
+    alpha = (1-level)
+    tstar = quantile(TDist(length(x)-1),1-alpha/2)
+    SE = std(x) / sqrt(length(x))
+    del =  tstar .* SE
+    return del
+end
+
+function circ_mean(x::Vector)
+    si = sum(sin.(x))
+    co = sum(cos.(x))
+    return atan(si,co)
+end
+function confMagPhase(meand::Vector{Float64}, vard::Matrix{Float64}, conf::Float64)
+
+    # PDF of 2D Gaussian (real/imag)
+    pdf(x) = (1/(2π)) * det(vard)^(-0.5) *
+        exp(-0.5 * sum((x .- meand) .* (vard \ (x .- meand))))
+
+    # Set 0-angle opposite from the mean angle
+    angle_0 = atan(meand[2], meand[1])
+
+    dtheta = 0.001 * π
+    dr = 0.001 * (norm(meand) + 5 * sqrt(norm(vard)))
+
+    # Radius grid
+    r = 0:dr:(norm(meand) + 5 * sqrt(norm(vard)))
+    # Theta grid
+    theta = (angle_0 - π):dtheta:(angle_0 + π)
+
+    # Meshgrid equivalent
+    ir = repeat(r', length(theta), 1)         # size = (length(theta), length(r))
+    itheta = repeat(theta, 1, length(r))     # size = (length(theta), length(r))
+
+    ix = ir .* cos.(itheta)
+    iy = ir .* sin.(itheta)
+
+    # Evaluate pdf at all points
+    iz = similar(ix)
+    for i in eachindex(ix)
+        iz[i] = pdf([ix[i], iy[i]])
+    end
+
+    # Jacobian for polar integration: r * dr * dθ
+    iz_patch = iz .* ir * dr * dtheta
+
+    # ---- THETA INTERVAL ---------------------------------------------------
+    int_iz_thetasweep = cumsum(sum(iz_patch, dims=2)[:])
+
+    idx_theta_high = findall(x -> x > conf, int_iz_thetasweep)
+    idx_theta_low  = findall(x -> x < 1 - conf, int_iz_thetasweep)
+
+    bestspread = 2π
+    theta_interval = [0.0, 0.0]
+
+    for k in idx_theta_high
+        diffs = abs.(int_iz_thetasweep[k] .- int_iz_thetasweep[idx_theta_low] .- conf)
+        _, idx = findmin(diffs)
+        cand = [theta[idx_theta_low[idx]], theta[k]]
+        if diff(cand)[1] < bestspread
+            bestspread = diff(cand)[1]
+            theta_interval = cand
+        end
+    end
+
+    # ---- R INTERVAL -------------------------------------------------------
+    int_iz_rsweep = sum(cumsum(iz_patch, dims=2), dims=1)[:]
+
+    idx_r_high = findall(x -> x > conf, int_iz_rsweep)
+    idx_r_low  = findall(x -> x < 1 - conf, int_iz_rsweep)
+
+    bestspread = 1e12
+    r_interval = [0.0, 0.0]
+
+    for k in idx_r_high
+        diffs = abs.(int_iz_rsweep[k] .- int_iz_rsweep[idx_r_low] .- conf)
+        _, idx = findmin(diffs)
+        cand = [r[idx_r_low[idx]], r[k]]
+        if diff(cand)[1] < bestspread
+            bestspread = diff(cand)[1]
+            r_interval = cand
+        end
+    end
+
+    return r_interval, theta_interval
 end

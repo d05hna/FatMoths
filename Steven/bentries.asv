@@ -1,0 +1,154 @@
+morph = table2struct(readtable("morph_data.csv"));
+datavars = {data091815_run1,
+    data100515_run2,
+    data102015_run1,
+    data102815_run3,
+    data021116_run3,
+    data080416_run2,
+    data080916_run2,
+    data080916_run5,
+    data092116_run2,
+    data111816_run1};
+
+results = struct(); 
+
+for i = 1:10     
+    m = morph(i).mi * 10^-3; % mass
+    mf = morph(i).mf * 10^-3;
+    l = morph(i).l; % body length 
+    bw = morph(i).w; % body width 
+    c = morph(i).c; % wing chord length 
+    st = morph(i).st; % wing area for both 
+    wbf = morph(i).ni; % wing beat frequency 
+    wbff = morph(i).nf; 
+    
+    flowerpre = datavars{i}(1).flowerXpos;
+    flowerpost = datavars{i}(3).flowerXpos;
+    mothpre = datavars{i}(1).mothXpos; 
+    mothpost = datavars{i}(3).mothXpos;
+    
+    Hi = (fft(mothpre) ./ fft(flowerpre));
+    Hi = Hi(datavars{i}(1).peak_indicesX);
+    Hf = (fft(mothpost) ./ fft(flowerpost));
+    Hf = Hf(datavars{i}(3).peak_indicesX);
+    
+    % I need Certain Parameters for this to work: 
+    
+    g = 9.81; % gravity duh 
+    u = 0; % assume no forward flight speed 
+    w = 0; % assume no vertical flight speed 
+    phi = 106*(pi/180); % stroke amplitude from hedrik paper wing assymetry 
+    r2 = 0.021; % radius of second moment of wing area 
+    rho = 1.2754; % Density of air at STP (kg/m^3)
+    T = 1/wbf; % flapping period (mean)
+    U = 2*phi*wbf*r2; % mean flapping velocity 
+    mp = m/(rho*U*st*T); % non dimensional mass from Sun 2014 
+    gp = g*T/U; % non dimensional gravity 
+    
+    % moments of intertia 
+    Ixx = ((m/5)*(2*bw^2));
+    Izz = ((m/5)*(l^2+bw^2));
+    Ixz = 0;
+    
+    % non-dimensionalizing MOI again per Sun 2014 
+    Ixxp = Ixx/(rho*U^2*st*c*T^2);
+    Izzp =Izz/(rho*U^2*st*c*T^2);
+    Ixzp = Ixz/(rho*U^2*st*c*T^2);
+    
+    C1 = (Ixxp*Izzp-Ixzp^2); % this relationship is helpful for A Matrix 
+    
+    % Take the Non Dimensional Partial Derivatives from 6 DoF Trim Search Paper 
+    % four state system v p r phi: lateral, yaw,roll, and then idk? look at
+    % paper 
+    Yv = -1.00;
+    Yp = -0.17;
+    Yr = 0.44;
+    Lv = -0.11;
+    Lp = -1.00;
+    Lr = 0.30;
+    Nv = 0.20;
+    Np = 0.35;
+    Nr = -1.49;
+    
+    % Take A from Sun Paper 
+    A = [Yv/mp,Yp/mp,(Yr/mp) - u,gp;
+        (Izzp*Lv + Ixzp*Nv)/C1,(Izz*Lp+Ixz*Np)/C1,(Izzp*Lr+Ixzp*Nr)/C1,0;
+        (Ixzp*Lv+Ixxp*Nv)/C1,(Ixzp*Lp+Ixxp*Np)/C1,(Ixzp*Lr+Ixxp*Nr)/C1,0;
+        0,1,0,0];
+    % B is 1/M for Lateral and then yaw and roll intertias 
+    B = [1/m, 0, 0, 0;
+        0, 1/((Ixx*Izz-Ixz^2)/Izz), Ixz/(Ixx*Izz-Ixz^2), 0;
+        0, Ixz/(Ixx*Izz-Ixz^2), 1/((Ixx*Izz-Ixz^2)/Ixx), 0;
+        0 0 0 0];
+    
+    C = [1,0,0,0]; % only output is the lateral movement 
+    D = [0,0,0,0];% no feed forward input from u to output
+    
+    [num, dem] = ss2tf(A,B,C,D,1);
+    
+    sys = tf(num,dem);
+    freqs = [0.2000    0.3000    0.5000    0.7000    1.1000    1.3000...
+        1.7000    1.9000    2.3000    2.9000    3.7000    4.3000    5.3000...
+        6.1000  7.9000    8.9000   11.3000   13.7000];
+    
+    inputs = freqs.*(2*pi*1j);
+    
+    Mi = freqresp(sys,inputs);
+    Mi=reshape(Mi,length(Mi),1,1);
+    
+    Ci = (inputs'.*Hi)./(Mi-Hi.*Mi);
+    
+    T = 1/wbff; % flapping period (mean)
+    U = 2*phi*wbff*r2; % mean flapping velocity 
+    mp = mf/(rho*U*st*T); % non dimensional mass from Sun 2014 
+    gp = g*T/U; % non dimensional gravity 
+    
+    % moments of intertia 
+    Ixx = ((mf/5)*(2*bw^2));
+    Izz = ((mf/5)*(l^2+bw^2));
+    Ixz = 0;
+    
+    % non-dimensionalizing MOI again per Sun 2014 
+    Ixxp = Ixx/(rho*U^2*st*c*T^2);
+    Izzp =Izz/(rho*U^2*st*c*T^2);
+    Ixzp = Ixz/(rho*U^2*st*c*T^2);
+    
+    
+    
+    % Take A from Sun Paper 
+    A = [Yv/mp,Yp/mp,(Yr/mp) - u,gp;
+        (Izzp*Lv + Ixzp*Nv)/C1,(Izz*Lp+Ixz*Np)/C1,(Izzp*Lr+Ixzp*Nr)/C1,0;
+        (Ixzp*Lv+Ixxp*Nv)/C1,(Ixzp*Lp+Ixxp*Np)/C1,(Ixzp*Lr+Ixxp*Nr)/C1,0;
+        0,1,0,0];
+    % B is 1/M for Lateral and then yaw and roll intertias 
+    B = [1/mf, 0, 0, 0;
+        0, 1/((Ixx*Izz-Ixz^2)/Izz), Ixz/(Ixx*Izz-Ixz^2), 0;
+        0, Ixz/(Ixx*Izz-Ixz^2), 1/((Ixx*Izz-Ixz^2)/Ixx), 0;
+        0 0 0 0];
+    
+    C = [1,0,0,0]; % only output is the lateral movement 
+    D = [0,0,0,0];% no feed forward input from u to output
+    
+    [num, dem] = ss2tf(A,B,C,D,1);
+    
+    sys = tf(num,dem);
+    freqs = [0.2000    0.3000    0.5000    0.7000    1.1000    1.3000...
+        1.7000    1.9000    2.3000    2.9000    3.7000    4.3000    5.3000...
+        6.1000  7.9000    8.9000   11.3000   13.7000];
+    
+    inputs = freqs.*(2*pi*1j);
+    
+    Mf = freqresp(sys,inputs);
+    Mf=reshape(Mf,length(Mf),1,1);
+    
+    Cf = (inputs'.*Hf)./(Mf-Hf.*Mf);
+    
+    Hhatf = (Ci.*Mf)./(inputs'+Ci.*Mf);
+    
+    results(i).m = morph(i).moth;
+    results(i).Ci = Ci;
+    results(i).Cf = Cf; 
+    results(i).Hhatf = Hhatf;
+    results(i).Hi = Hi;
+    results(i).Hf = Hf;
+end
