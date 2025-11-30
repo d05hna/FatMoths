@@ -51,15 +51,16 @@ for (i,m) in enumerate(moths)
     fyaw = zscore(fat[:,6])
     froll = zscore(fat[:,5])
 
-    s = hcat(sfx,syaw,sroll)
 
-    mo = fit(MultivariateStats.PCA,s')
-    println("Low VE: ", mo.prinvars[1] / mo.tvar)
+    s = hcat(sfx, syaw,sroll)
+    f = hcat(ffx, fyaw,froll)
+
+    mo = fit(MultivariateStats.PCA,vcat(s,f)')
+    # println("Low VE: ", mo.prinvars[1] / mo.tvar)
 
     ci = (s * mo.proj)
      
-    f = hcat(ffx,fyaw,froll)
-    mo = fit(MultivariateStats.PCA,f')
+    # mo = fit(MultivariateStats.PCA,f')
     # println("High VE: ", mo.prinvars[1] / mo.tvar)
 
     cf = (f * mo.proj)
@@ -87,12 +88,12 @@ end
 ##
 for i in 1:n_moths 
     F = Figure(size=(800,800))
-    ax1 = Axis(F[1,1],ylabel = "gain",title=moths[i])
-    lines!(ax1, freqqs,abs.(Ci[:,i]),color=:steelblue,linewidth=3)
-    lines!(ax1,freqqs,abs.(Cf[:,i]),color=:firebrick,linewidth=3)
+    ax1 = Axis(F[1,1],ylabel = "gain",title=moths[i],xscale=log10)
+    lines!(ax1, freqqs[1:15],abs.(Ci[1:15,i]),color=:steelblue,linewidth=3)
+    lines!(ax1,freqqs[1:15],abs.(Cf[1:15,i]),color=:firebrick,linewidth=3)
     hidexdecorations!(ax1)
     F
-    ax2 = Axis(F[2,1],ylabel="phase",xlabel="Frequency")
+    ax2 = Axis(F[2,1],ylabel="phase",xlabel="Frequency",xscale=log10)
     linkxaxes!(ax2,ax1) 
     lines!(ax2,freqqs,unwrap(angle.(Ci[:,i])),linewidth=3,color=:steelblue) 
     lines!(ax2,freqqs,unwrap(angle.(Cf[:,i])),linewidth=3,color=:firebrick)
@@ -107,8 +108,8 @@ f = Figure()
 ax = Axis(f[1,1],xscale=log10,yscale=log10,
 ylabel="Gain",yticks=[0.01,0.1,1],title="Mean Tethered Tracking Response")
 hidexdecorations!(ax)
-lines!(ax,freqqs,abs.(mci),color=:steelblue,linewidth=3)
-lines!(ax,freqqs,abs.(mcf),color=:firebrick,linewidth=3)
+lines!(ax,freqqs[1:15],abs.(mci)[1:15],color=:steelblue,linewidth=3)
+lines!(ax,freqqs[1:15],abs.(mcf)[1:15],color=:firebrick,linewidth=3)
 ax2 = Axis(f[2,1],xscale=log10,
 ylabel="Phase",xlabel="Frequencey",xticks=[0.2,1,10],yticks=([0,-pi,-2pi,-3pi],[L"0",L"-\pi",L"-2\pi",L"-3\pi"]))
 lines!(ax2,freqqs,unwrap(angle.(mci)),color=:steelblue,linewidth=3)

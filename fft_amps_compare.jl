@@ -27,11 +27,11 @@ for moth in collect(keys(FreeFlight))
     d = FreeFlight[moth]
     ms = d["moth_pre"]
     fs = d["flower_pre"]
-    es = ms .- fs 
+    es = zscore(ms .- fs )
     fes = fft(es) 
     mf = d["moth_post"]
     ff = d["flower_post"]
-    ef = mf .- fs
+    ef = zscore(mf .- fs)
     fef = fft(ef) 
     errors[moth] = Dict("pre"=> es,"post"=> ef,"fpre" => fes,"fpost"=>fef)
 end 
@@ -40,7 +40,7 @@ fr_open = fftfreq(N_open,fs_open)[1:201]
 ## Start the Figure with the Closed Loop 
 F = Figure(size=(800,800))
 ax = Axis(F[1,1],xscale=log10,title="Closed Loop Error",ylabel="Magnitude",xlabel="Frequency",
-    limits = (nothing,nothing,0,50))
+    limits = (nothing,nothing,0,0.6))
 vlines!(ax,freqqs,color=:grey,alpha=0.5,linestyle=:dash)
 
 for m in collect(keys(errors))
@@ -49,16 +49,17 @@ for m in collect(keys(errors))
 end
 
 ax2 = Axis(F[1,2],xscale=log10,title="Open Loop Flower",ylabel = "Magnitude",xlabel="Frequency",
-    limits = (nothing,nothing,0,50))
+    limits = (nothing,nothing,0,0.6))
 vlines!(ax2,freqqs,color=:grey,alpha=0.5,linestyle=:dash)
 for m in collect(keys(allmoths))
-    fpre = abs.(fft(allmoths[m]["stimpre"]))[1:201] ./ N_open 
-    fpost = abs.(fft(allmoths[m]["stimpost"]))[1:201] ./ N_open 
+    fpre = abs.(fft(zscore(allmoths[m]["stimpre"])))[1:201] ./ N_open 
+    fpost = abs.(fft(zscore(allmoths[m]["stimpost"])))[1:201] ./ N_open 
     lines!(ax2,fr_open,fpre)
     lines!(ax2,fr_open,fpost)
 end
 
 F
+##
 """ 
 YOU NEED TO ENSURE UNITS BC PIXELS COULD BE DECEVIING 
 GO AND LOOK FOR HIS UNIT CONVERSION AND TURN OL TO Same Unit you have the conversiton 
