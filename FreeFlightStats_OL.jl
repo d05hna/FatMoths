@@ -46,7 +46,7 @@ Cf = hcat(pnt["Cf"]...)
 
 
 
-##
+
 pre = DataFrame() 
 post = DataFrame() 
 
@@ -76,6 +76,9 @@ pre.mp = unwrap_negative(pre.mp)
 post.mp = unwrap_negative(post.mp)
 
 ##
+pre = pre[pre.freq .< 8.9,:]
+post = post[post.freq .< 8.9,:]
+##
 F = Figure(size=(800,800)) 
 ax = Axis(F[2,1],ylabel="Gain",xscale=log10,xticklabelsvisible=false,yticks=[0,0.1,1],yscale=log10)
 
@@ -95,26 +98,27 @@ Legend(F[1,1],[l,h],["Low Mass","High Mass"],orientation = :horizontal)
 save("Figs/PaperFigs/OL_tracking.svg",F,px_per_unit=4)
 F
 ##
-gci = abs.(Ci)
-gcf = abs.(Cf)
+gci = abs.(Ci)[1:15,:]
+gcf = abs.(Cf)[1:15,:]
 
 gchange = gcf ./ gci
 mgchange = mean(gchange,dims=2)[:]
 semchange = std(gchange,dims=2)[:] ./sqrt(10)
 
-logx = log10.(freqqs)
+logx = log10.(freqqs[1:15])
 Δ = 0.06 # width in log units
 left  = 10 .^ (logx .- Δ/2)
 right = 10 .^ (logx .+ Δ/2)
 widths = right .- left
 
 f = Figure(size=(800,400)) 
-ax = Axis(f[1,1],xscale=log10,limits=(0.15,18,0,4))
+ax = Axis(f[1,1],xscale=log10,limits=(0.15,10,0,4))
 ax.xticks=[0.2,1,10]
 ax.xlabel="Frequency (Hz)"
 ax.ylabel = "Gain Change Multiple"
-barplot!(ax,freqqs,mgchange,width=widths,color=:grey)
-errorbars!(ax,freqqs,mgchange,semchange,color=:black)
-lines!(ax, range(0.15,18,length=16),repeat([1.7],16),linestyle=:dash,color=:red)
+barplot!(ax,freqqs[1:15],mgchange,width=widths,color=:grey)
+errorbars!(ax,freqqs[1:15],mgchange,semchange,color=:black)
+lines!(ax, range(0.15,10,length=16),repeat([1.0],16),linestyle=:dash,color=:red,label="No Change")
+axislegend(ax)
 save("Figs/PaperFigs/barplot_OL.svg",f,px_per_unit=4)
 f
