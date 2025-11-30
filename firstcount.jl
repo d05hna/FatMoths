@@ -35,10 +35,10 @@ set_theme!(theme)
 pixel_conversion = 0.14 ## mm/pixels 
 ##
 mc = get_mean_changes(allmoths;axis=6)
-moths = mc[mc.mean_gain .> 25,:moth]
+moths = ["2024_11_01","2024_11_08","2024_11_11","2025_03_20","2025_04_02","2025_09_19","2025_10_10"]
 n_moths = length(moths)
 ##
-df = allmoths["2024_11_11"]["data"]
+df = allmoths["2024_11_08"]["data"]
 put_stim_in!(df,allmoths,"2024_11_11")
 ##
 d = combine(groupby(df,[:moth,:wb,:muscle])) do gdf 
@@ -62,16 +62,26 @@ timemat = Matrix(dropmissing(select(unstack(time,:muscle,:firstphase),Not(:wb)))
 tris = Bool.(countmat[:,1])
 stim = countmat[:,2]
 
-fullmat = hcat(zscore(timemat[:,2:end]),zscore(countmat[:,3:end]))
+fullmat = zscore(timemat[:,2:end])
 
 
 ##
 pc = fit(MultivariateStats.PCA,fullmat')
 lat = pc.proj' * fullmat'
 
+ 
+##
+F = Figure() 
+ax = Axis3(F[1,1])
+scatter!(ax,lat[1,:],lat[2,:],lat[3,:],color=stim)
+F
+##
+dlm = d[d.muscle.=="ldlm" .|| d.muscle.=="rdlm",[:wb,:muscle,:firsttime,:trial,:stim]]
+timemat = dropmissing(select(unstack(dlm,:muscle,:firsttime),Not(:wb)))
+timemat.off = timemat.rdlm - timemat.ldlm 
 
 ##
 F = Figure() 
 ax = Axis(F[1,1])
-scatter!(ax,lat[1,:],lat[2,:],color=stim)
+scatter!(ax,timemat.off,color=timemat.stim)
 F
