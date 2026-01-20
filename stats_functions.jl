@@ -5,7 +5,7 @@ function fisher_g_pvalue(g, n)
     n: number of frequencies tested
     using log gamma distribution to avoid overflow issues
     """
-    
+
     pval = 0.0
     upper_limit = floor(Int, 1/g)
     
@@ -37,10 +37,10 @@ function fisher_test_tracking(x,fs,f; win = 10 )
     freqs = round.(pxx.freq, digits=2)
 
     id = findfirst(x -> x == f, freqs) 
-    band = pxx.power[id-Int(win/2):id+Int(win/2)]
+    band = pxx.power[id-Int(win):id+Int(win)]
     pow = pxx.power[id] 
     tot = sum(band) 
     g = pow / tot 
-    pval = fisher_g_pvalue(g,win+1)
+    pval = fisher_g_pvalue(g,length(band))
     return pval
 end 
