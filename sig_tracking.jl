@@ -43,8 +43,8 @@ for moth in collect(keys(FreeFlight))
     post = FreeFlight[moth]["moth_post"]
 
     for f in freqqs_to_test
-        pval_pre = fisher_test_tracking(pre,fs,f,win=10)
-        pval_post = fisher_test_tracking(post,fs,f,win=10)
+        pval_pre = fisher_test_tracking(pre,fs,f)
+        pval_post = fisher_test_tracking(post,fs,f)
         tmp = Dict(
             "Moth" => moth,
             "Frequency" => f,
@@ -86,7 +86,7 @@ stcl_post = @pipe sig_tracking_CL |>
         :Total = length(:sig),
         :Proportion = sum(:sig) / length(:sig)
     )
-##
+
 F = Figure(size=(800,400))
 ax = Axis(F[1,1],ylabel="Proportion Significant (N = 10)",xscale=log10,yticks=0:0.2:1,xticks=[3,5,8,10],
     xlabel="Frequency (Hz)",title="Significant Tracking Closed Loop")
@@ -121,3 +121,5 @@ lines!(ax,fr[2:200],abs.(ft2)[2:200] ./N ,color=:firebrick,linewidth=3,label="Mo
 axislegend(ax)
 vlines!(ax,freqqs,color=:grey,alpha=0.5)
 fig
+##
+using MAT
