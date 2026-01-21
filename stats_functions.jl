@@ -18,7 +18,7 @@ function tf_stats(x:: Vector{ComplexF64})
     l_m_G = mean(log.(norm.(x)))
 
     # log std of the gain 
-    l_std_g = sqrt(1/length(x) * sum((norm.(x) .- m_G).^2))
+    l_std_g = sqrt(1/(length(x)-1) * sum((log.(norm.(x)) .- l_m_G).^2))
 
     # add and subtract std and then exponentiate
     high = exp(l_m_G + l_std_g)
