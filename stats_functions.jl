@@ -1,3 +1,44 @@
+function tf_stats(x:: Vector{ComplexF64}) 
+    """
+    METHODS TAKEN FROM ROTH et AL PNAS 2016  
+    
+    Compute the mean and std for gain and phase of a complex transfer function x 
+    Takes in a vector of complex numbers 
+    Here Used as a set of responses to a given driving frequencey
+    mean and std of gain in log space exponentiated back 
+    Circular mean and std for phase 
+
+    NOTE : while mg +- std g is not symmetric because log space, p_std is symmetric around mp
+
+
+    returns : mg, glow, ghigh, mp, p_std
+    """ 
+
+    # log mean of the gain 
+    l_m_G = mean(log.(norm.(x)))
+
+    # log std of the gain 
+    l_std_g = sqrt(1/length(x) * sum((norm.(x) .- m_G).^2))
+
+    # add and subtract std and then exponentiate
+    high = exp(l_m_G + l_std_g)
+    low = exp(l_m_G - l_std_g)
+    # exponentiate the mean back 
+    mg = exp(l_m_G)
+
+    # circular mean of the phase 
+    mp = angle(mean(exp.(angle.(x) .* im )))
+
+    # Vector strength 
+    R = norm(1/length(x) * sum(exp.(angle.(x) .* im )))
+
+    # circular std of the phase 
+    std_p = sqrt(-2 * log(R))
+
+    return mg, low, high, mp, std_p
+end
+
+
 function fisher_g_pvalue(g, n)
     """
     Calculate the p-value for Fisher's g test.
@@ -44,3 +85,4 @@ function fisher_test_tracking(x,fs,f; win = 10 )
     pval = fisher_g_pvalue(g,length(band))
     return pval
 end 
+
