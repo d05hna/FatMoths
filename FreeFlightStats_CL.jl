@@ -66,6 +66,12 @@ for (i,f) in enumerate(freqqs)
 end
 pre.mp = unwrap(pre.mp)
 post.mp = unwrap(post.mp)
+pre.glow = pre.mg .- (pre.mg .- pre.glow)./sqrt(10)
+pre.ghigh = pre.mg .+ (pre.ghigh .- pre.mg)./sqrt(10)
+post.glow = post.mg .- (post.mg .- post.glow)./sqrt(10)
+post.ghigh = post.mg .+ (post.ghigh .- post.mg)./sqrt(10)
+pre.stp = pre.stp ./ sqrt(10)
+post.stp = post.stp ./ sqrt(10)
 CSV.write("Steven/CL_pre_stats.csv",pre)
 CSV.write("Steven/CL_post_stats.csv",post)
 ##

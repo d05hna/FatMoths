@@ -52,6 +52,12 @@ for (i,f) in enumerate(freqqs)
 end
 pre.mp = unwrap(pre.mp)
 post.mp = unwrap(post.mp)
+pre.glow = pre.mg .- (pre.mg .- pre.glow)./sqrt(10)
+pre.ghigh = pre.mg .+ (pre.ghigh .- pre.mg)./sqrt(10)
+post.glow = post.mg .- (post.mg .- post.glow)./sqrt(10)
+post.ghigh = post.mg .+ (post.ghigh .- post.mg)./sqrt(10)
+pre.stp = pre.stp ./ sqrt(10)
+post.stp = post.stp ./ sqrt(10)
 CSV.write("FreeFlight_OL_stats_pre.csv",pre)
 CSV.write("FreeFlight_OL_stats_post.csv",post)
 
@@ -86,14 +92,15 @@ Legend(F[1,1],[l,h],["Low Mass","High Mass"],orientation = :horizontal)
 save("Figs/PaperFigs/OL_tracking.svg",F,px_per_unit=4)
 F
 ##
-gci = abs.(Ci)[1:15,:]
-gcf = abs.(Cf)[1:15,:]
+di = matread("Steven/TimeVarMass/moths_v73.mat")
 
-gchange = gcf ./ gci
+cilat = abs.(di["Cilat"])[1:15,:]
+cflat = abs.(di["Cflat"])[1:15,:]
+##
 
-mgchange = mean(gchange,dims=2)[:]
-semchange = std(gchange,dims=2)[:] ./sqrt(10)
-
+gchange_lat = cflat ./ cilat 
+mgchange = mean(gchange_lat,dims=2)[:]
+semchange = std(gchange_lat,dims=2)[:] ./ sqrt(10)
 logx = log10.(freqqs[1:15])
 Δ = 0.06 # width in log units
 left  = 10 .^ (logx .- Δ/2)
@@ -102,12 +109,19 @@ widths = right .- left
 
 f = Figure(size=(800,400)) 
 ax = Axis(f[1,1],xscale=log10,limits=(0.15,10,0,4))
-ax.xticks=[0.2,1,10]
+ax.xticks=([0.2,1,8],[L"0.2",L"1",L"8"])
+ax.xticklabelsize=25
+ax.xlabelsize=25
+ax.yticklabelsize=25
+ax.ylabelsize=25
+ax.yticks = ([0,1,2,4],[L"0",L"1",L"2",L"4"])
 ax.xlabel="Frequency (Hz)"
 ax.ylabel = "Gain Change Multiple"
+
 barplot!(ax,freqqs[1:15],mgchange,width=widths,color=:grey)
 errorbars!(ax,freqqs[1:15],mgchange,semchange,color=:black)
-lines!(ax, range(0.15,10,length=16),repeat([1.7],16),linestyle=:dash,color=:red,label="No Change")
+lines!(ax, range(0.15,10,length=16),repeat([1],16),linestyle=:dash,color=:red,label="No Change")
 axislegend(ax)
-# save("Figs/PaperFigs/barplot_OL.svg",f,px_per_unit=4)
+save("Figs/PaperFigs/barplot_OL.svg",f,px_per_unit=4)
 f
+##
