@@ -7,6 +7,7 @@ using Statistics
 using LinearAlgebra
 using JLD2
 using DSP 
+using GLM
 include("stats_functions.jl")
 CairoMakie.activate!()
 theme = theme_minimal()
@@ -34,7 +35,7 @@ for (i,f) in enumerate(freqqs)
         "freq"  => f,
         "mg"    => mg,
         "glow"  => glow,
-        "ghigh" => ghigh,
+        "ghigh" => ghigh,condition
         "mp"    => mp,
         "stp"  => p_std,
     )
@@ -109,7 +110,7 @@ widths = right .- left
 
 f = Figure(size=(800,400)) 
 ax = Axis(f[1,1],xscale=log10,limits=(0.15,10,0,4))
-ax.xticks=([0.2,1,8],[L"0.2",L"1",L"8"])
+ax.xticks=([0.2,1,8],[L"0.2",L"1",L"8"])​
 ax.xticklabelsize=25
 ax.xlabelsize=25
 ax.yticklabelsize=25
@@ -125,3 +126,27 @@ axislegend(ax)
 save("Figs/PaperFigs/barplot_OL.svg",f,px_per_unit=4)
 f
 ##
+cis = hcat(di["Cilat"][1:15,:]...)
+cfs = hcat(di["Cflat"][1:15,:]...)
+ms = ["moth_$i" for i in 1:10]
+ms = repeat(ms,inner=15)
+freqs = repeat(freqqs[1:15],outer=10)
+
+low_mass_df = DataFrame(
+    moth = ms,
+    freq = freqs,
+    gain = vec(abs.(cis)),
+    phase = vec(angle.(cis)),
+    condition = repeat(["Low Mass"],150)
+)
+high_mass_df = DataFrame(
+    moth = ms,
+    freq = freqs,
+    gain = vec(abs.(cfs)),
+    phase = vec(angle.(cfs)),
+    condition = repeat(["High Mass"],150)
+)
+all_df = vcat(low_mass_df,high_mass_df)
+
+lm_gain = lm(@formula(gain ~ condition + freq), all_df)
+lm_phase = lm(@formula(phase ~ condition + freq), all_df)
