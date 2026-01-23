@@ -86,3 +86,47 @@ function fisher_test_tracking(x,fs,f; win = 10 )
     return pval
 end 
 
+function get_all_tf_stats(low,high,freqs; freq_max=20)
+    """
+    take in a low mass and high mass matrix of complex transfer functions
+    rows are frequencies
+    columns are moths
+    freq_max -> maximum frequency to consider
+    returns two dataframes of stats for low and high mass conditions
+    """
+    freqs = freqs[freqs .<= freq_max]
+    pre = DataFrame()
+    post = DataFrame()
+    for (i,f) in enumerate(freqs)
+        mg,glow,ghigh,mp,p_std = tf_stats(low[i,:])
+        tmp = Dict(
+            "freq"  => f,
+            "mg"    => mg,
+            "glow"  => glow,
+            "ghigh" => ghigh,
+            "mp"    => mp,
+            "stp"  => p_std,
+        )
+        push!(pre, tmp,cols=:union)
+        mg,glow,ghigh,mp,p_std = tf_stats(high[i,:])
+        tmp = Dict(
+            "freq"  => f,
+            "mg"    => mg,
+            "glow"  => glow,
+            "ghigh" => ghigh,
+            "mp"    => mp,
+            "stp"  => p_std,
+        )
+        push!(post, tmp,cols=:union)
+    end
+    pre.mp = unwrap(pre.mp,circular_dims=true)
+    post.mp = unwrap(post.mp,circular_dims=true)
+    pre.glow = pre.mg .- (pre.mg .- pre.glow)./sqrt(size(low,2))
+    pre.ghigh = pre.mg .+ (pre.ghigh .- pre.mg)./sqrt(size(low,2))
+    post.glow = post.mg .- (post.mg .- post.glow)./sqrt(size(high,2))
+    post.ghigh = post.mg .+ (post.ghigh .- post.mg)./sqrt(size(high,2))
+    pre.stp = pre.stp ./ sqrt(size(low,2))
+    post.stp = post.stp ./ sqrt(size(high,2))
+    return pre, post
+end 
+
