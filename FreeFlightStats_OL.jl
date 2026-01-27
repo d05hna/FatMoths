@@ -26,39 +26,7 @@ pnt = matread("Steven/steven_data_linear.mat")["results"]
 Ci = hcat(pnt["Ci"]...)
 Cf = hcat(pnt["Cf"]...)
 ##
-pre = DataFrame() 
-post = DataFrame() 
-
-for (i,f) in enumerate(freqqs)
-    mg,glow,ghigh,mp,p_std = tf_stats(Ci[i,:])
-    tmp = Dict(
-        "freq"  => f,
-        "mg"    => mg,
-        "glow"  => glow,
-        "ghigh" => ghigh,condition
-        "mp"    => mp,
-        "stp"  => p_std,
-    )
-    push!(pre, tmp,cols=:union)
-    mg,glow,ghigh,mp,p_std = tf_stats(Cf[i,:])
-    tmp = Dict(
-        "freq"  => f,
-        "mg"    => mg,
-        "glow"  => glow,
-        "ghigh" => ghigh,
-        "mp"    => mp, 
-        "stp"  => p_std,
-    )
-    push!(post, tmp,cols=:union)
-end
-pre.mp = unwrap(pre.mp)
-post.mp = unwrap(post.mp)
-pre.glow = pre.mg .- (pre.mg .- pre.glow)./sqrt(10)
-pre.ghigh = pre.mg .+ (pre.ghigh .- pre.mg)./sqrt(10)
-post.glow = post.mg .- (post.mg .- post.glow)./sqrt(10)
-post.ghigh = post.mg .+ (post.ghigh .- post.mg)./sqrt(10)
-pre.stp = pre.stp ./ sqrt(10)
-post.stp = post.stp ./ sqrt(10)
+pre,post = get_all_tf_stats(Ci,Cf,freqqs; freq_max=8)
 CSV.write("FreeFlight_OL_stats_pre.csv",pre)
 CSV.write("FreeFlight_OL_stats_post.csv",post)
 
@@ -72,10 +40,10 @@ ax = Axis(F[2,1],xscale = log10,xticklabelsvisible=false,
     ylabelsize=30, yticklabelsize=25,
     )
 
-lines!(ax,pre.freq,pre.mg,color=:steelblue,linewidth=3)
-lines!(ax,post.freq,post.mg,color=:firebrick,linewidth=3)
-band!(ax,pre.freq,pre.glow,pre.ghigh,color=:steelblue,alpha=0.3)
-band!(ax,post.freq,post.glow,post.ghigh,color=:firebrick,alpha=0.3)
+lines!(ax,pre.freq,pre.mg,color=:steelblue,linewidth=4)
+lines!(ax,post.freq,post.mg,color=:firebrick,linewidth=4)
+band!(ax,pre.freq,pre.glow,pre.ghigh,color=:steelblue,alpha=0.5)
+band!(ax,post.freq,post.glow,post.ghigh,color=:firebrick,alpha=0.5)
 ax2 = Axis(F[3,1],limits=(0.1,nothing,nothing,nothing),
     ylabel="Phase (radians)", yticks = ([0,-pi/2, -pi,-3pi/2], [L"0",L"-\frac{\pi}{2}",L"-\pi",L"-\frac{3\pi}{2}"]),
     ylabelsize=30, yticklabelsize=25,
@@ -83,10 +51,10 @@ ax2 = Axis(F[3,1],limits=(0.1,nothing,nothing,nothing),
     xlabelsize=30, xticklabelsize=25,
     )
 
-l = lines!(ax2,pre.freq,pre.mp,color=:steelblue,linewidth=3)
-h = lines!(ax2,post.freq,post.mp,color=:firebrick,linewidth=3)
-band!(ax2,pre.freq,pre.mp .- pre.stp,pre.mp .+ pre.stp,color=:steelblue,alpha=0.3)
-band!(ax2,post.freq,post.mp .- post.stp,post.mp .+ post.stp,color=:firebrick,alpha=0.3)
+l = lines!(ax2,pre.freq,pre.mp,color=:steelblue,linewidth=4)
+h = lines!(ax2,post.freq,post.mp,color=:firebrick,linewidth=4)
+band!(ax2,pre.freq,pre.mp .- pre.stp,pre.mp .+ pre.stp,color=:steelblue,alpha=0.5)
+band!(ax2,post.freq,post.mp .- post.stp,post.mp .+ post.stp,color=:firebrick,alpha=0.5)
 
 linkxaxes!(ax2,ax)
 Legend(F[1,1],[l,h],["Low Mass","High Mass"],orientation = :horizontal)
@@ -110,7 +78,7 @@ widths = right .- left
 
 f = Figure(size=(800,400)) 
 ax = Axis(f[1,1],xscale=log10,limits=(0.15,10,0,4))
-ax.xticks=([0.2,1,8],[L"0.2",L"1",L"8"])​
+ax.xticks=([0.2,1,8],[L"0.2",L"1",L"8"])
 ax.xticklabelsize=25
 ax.xlabelsize=25
 ax.yticklabelsize=25
