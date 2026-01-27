@@ -20,7 +20,7 @@ using StatsBase
 include("/home/doshna/Documents/PHD/comparativeMPanalysis_bmd/functions.jl")
 include("/home/doshna/Documents/PHD/comparativeMPanalysis_bmd/readAndPreprocessFunctions.jl")
 include("me_functions.jl")
-=
+
 ##
 @load "fat_moths_set_1.jld" allmoths
 ##
