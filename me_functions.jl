@@ -1312,23 +1312,18 @@ function get_ci_freaky(v::Vector{ComplexF64};ci=0.95)
 end
 function unwrap_negative(ph)
     ph = collect(ph)           # Ensure it's an array
-    unwrapped = similar(ph)
-    unwrapped[1] = ph[1]
+    unwrapped = copy(ph)
 
-    offset = 0.0
     for i in 2:length(ph)
         # raw jump
-        dp = ph[i] - ph[i-1]
+        dp = ph[i] - unwrapped[i-1]
 
         # If the jump is > +π, go negative
         if dp > π
-            offset -= 2π
-        # If the jump is < −π, go positive
-        elseif dp < -π
-            offset += 2π
-        end
-g > 100
-        unwrapped[i] = ph[i] + offset
+            dp = dp - 2pi 
+        end 
+
+        unwrapped[i] = ph[i] + dp
     end
 
     return unwrapped

@@ -1,4 +1,4 @@
-function tf_stats(x:: Vector{ComplexF64}) 
+function tf_stats(x:: Vector{ComplexF64},unwrapped_angles) 
     """
     METHODS TAKEN FROM ROTH et AL PNAS 2016  
     
@@ -27,10 +27,10 @@ function tf_stats(x:: Vector{ComplexF64})
     mg = exp(l_m_G)
 
     # circular mean of the phase 
-    mp = angle(mean(exp.(angle.(x) .* im )))
+    mp = angle(mean(exp.(unwrapped_angles .* im )))
 
     # Vector strength 
-    R = norm(1/length(x) * sum(exp.(angle.(x) .* im )))
+    R = norm(1/length(x) * sum(exp.(unwrapped_angles .* im )))
 
     # circular std of the phase 
     std_p = sqrt(-2 * log(R))
@@ -97,6 +97,13 @@ function get_all_tf_stats(low,high,freqs; freq_max=20)
     freqs = freqs[freqs .<= freq_max]
     pre = DataFrame()
     post = DataFrame()
+    l_angles = similar(low)
+    h_angles = similar(high)
+    for i in 1:size(low,2)
+        l_angles[:,i] = unwrap_negative(angle.(low[:,i]))
+        h_angles[:,i] = unwrap_negative(angle.(high[:,i]))
+    end
+
     for (i,f) in enumerate(freqs)
         mg,glow,ghigh,mp,p_std = tf_stats(low[i,:])
         tmp = Dict(
@@ -108,7 +115,7 @@ function get_all_tf_stats(low,high,freqs; freq_max=20)
             "stp"  => p_std,
         )
         push!(pre, tmp,cols=:union)
-        mg,glow,ghigh,mp,p_std = tf_stats(high[i,:])
+        mg,glow,ghigh,mp,p_std = tf_stats(high[i,:],h_angles[i,:])
         tmp = Dict(
             "freq"  => f,
             "mg"    => mg,
@@ -121,12 +128,32 @@ function get_all_tf_stats(low,high,freqs; freq_max=20)
     end
     pre.mp = unwrap(pre.mp,circular_dims=true)
     post.mp = unwrap(post.mp,circular_dims=true)
+
     pre.glow = pre.mg .- (pre.mg .- pre.glow)./sqrt(size(low,2))
     pre.ghigh = pre.mg .+ (pre.ghigh .- pre.mg)./sqrt(size(low,2))
     post.glow = post.mg .- (post.mg .- post.glow)./sqrt(size(high,2))
     post.ghigh = post.mg .+ (post.ghigh .- post.mg)./sqrt(size(high,2))
-    pre.stp = pre.stp ./ sqrt(size(low,2))
-    post.stp = post.stp ./ sqrt(size(high,2))
+    pre.stp = pre.stp 
+    post.stp = post.stp 
     return pre, post
 end 
+
+function unwrap_negative(ph)
+    ph = collect(ph)           # Ensure it's an array
+    unwrapped = copy(ph)
+
+    for i in 2:length(ph)
+        # raw jump
+        dp = ph[i] - unwrapped[i-1]
+
+        # If the jump is > +π, go negative
+        if dp > π
+            dp = dp - 2pi 
+        end 
+
+        unwrapped[i] = ph[i] + dp
+    end
+
+    return unwrapped
+end
 
