@@ -105,7 +105,7 @@ function get_all_tf_stats(low,high,freqs; freq_max=20)
     end
 
     for (i,f) in enumerate(freqs)
-        mg,glow,ghigh,mp,p_std = tf_stats(low[i,:])
+        mg,glow,ghigh,mp,p_std = tf_stats(low[i,:],l_angles[i,:])
         tmp = Dict(
             "freq"  => f,
             "mg"    => mg,
@@ -126,15 +126,15 @@ function get_all_tf_stats(low,high,freqs; freq_max=20)
         )
         push!(post, tmp,cols=:union)
     end
-    pre.mp = unwrap(pre.mp,circular_dims=true)
-    post.mp = unwrap(post.mp,circular_dims=true)
+    pre.mp = unwrap_negative(pre.mp)
+    post.mp = unwrap_negative(post.mp)
 
     pre.glow = pre.mg .- (pre.mg .- pre.glow)./sqrt(size(low,2))
     pre.ghigh = pre.mg .+ (pre.ghigh .- pre.mg)./sqrt(size(low,2))
     post.glow = post.mg .- (post.mg .- post.glow)./sqrt(size(high,2))
     post.ghigh = post.mg .+ (post.ghigh .- post.mg)./sqrt(size(high,2))
-    pre.stp = pre.stp 
-    post.stp = post.stp 
+    pre.stp = pre.stp ./ sqrt(size(low,2))
+    post.stp = post.stp ./ sqrt(size(high,2))
     return pre, post
 end 
 
