@@ -138,22 +138,15 @@ function get_all_tf_stats(low,high,freqs; freq_max=20)
     return pre, post
 end 
 
-function unwrap_negative(ph)
-    ph = collect(ph)           # Ensure it's an array
-    unwrapped = copy(ph)
+
+
+function unwrap_negative(ph) 
+    unwrapped = copy(ph) 
 
     for i in 2:length(ph)
-        # raw jump
-        dp = ph[i] - unwrapped[i-1]
-
-        # If the jump is > +π, go negative
-        if dp > π
-            dp = dp - 2pi 
-        end 
-
-        unwrapped[i] = ph[i] + dp
+        if ph[i] - unwrapped[i-1] > 0
+            unwrapped[i:end] .-= 2pi 
+        end
     end
-
     return unwrapped
 end
-

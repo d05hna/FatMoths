@@ -102,12 +102,14 @@ gtp = Dict(
 
 ##
 moth = "2025_03_20"
-df = DataFrame()
+df = DataFrame()plt.plot(components[2][0])
+
 params = Dict()
 df_ft_all = DataFrame()
 read_individual!(joinpath(data_dir,moth),df,df_ft_all,params,wb_len_thresh,phase_wrap_thresh;cheby_bandpass=cheby_bandpass,fatmoths=true)
 df.time_abs .+= 30  
-ft_pre,ft_post = get_side_slips(data_dir,moth,params[moth],[Int(gtp[moth][1]),Int(gtp[moth][2])])
+ft_pre,ft_post = get_plt.plot(components[2][0])
+side_slips(data_dir,moth,params[moth],[Int(gtp[moth][1]),Int(gtp[moth][2])])
 ##
 """
 STOP RIGHT HERE!!! LOOK Between Videos and Force Traces and Get the Best 10 Seconds of Tracking for each!!
@@ -158,7 +160,8 @@ fftpost=fftpost[1:id]
 freqrange=freqrange[1:id]
 
 fig = Figure()
-ax1 = Axis(fig[1, 1], 
+ax1 = Axis(fig[1, 1],plt.plot(components[2][0])
+ 
     xlabel = "Frequency", 
     ylabel = "Amplitude",
     title = "Pre",
