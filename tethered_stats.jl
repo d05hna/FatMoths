@@ -101,7 +101,7 @@ lines!(ax2,pre_fx.freq,pre_fx.mp,color=:steelblue,linewidth=3)
 lines!(ax2,post_fx.freq,post_fx.mp,color=:firebrick,linewidth=3)
 band!(ax2,pre_fx.freq,pre_fx.mp .- pre_fx.stp,pre_fx.mp .+ pre_fx.stp,color=:steelblue,alpha=0.3)
 band!(ax2,post_fx.freq,post_fx.mp .- post_fx.stp,post_fx.mp .+ post_fx.stp,color=:firebrick,alpha=0.3)
-save("Figs/PaperFigs/FX_tracking.png",f,px_per_unit=4)
+# save("Figs/PaperFigs/FX_tracking.png",f,px_per_unit=4)
 f 
 ##
 pre_yaw, post_yaw = get_all_tf_stats(Hi_yaw,Hf_yaw,freqqs; freq_max=8)
@@ -172,7 +172,7 @@ lines!(ax2,pre_roll.freq,pre_roll.mp,color=:steelblue,linewidth=3)
 lines!(ax2,post_roll.freq,post_roll.mp,color=:firebrick,linewidth=3)
 band!(ax2,pre_roll.freq,pre_roll.mp .- pre_roll.stp,pre_roll.mp .+ pre_roll.stp,color=:steelblue,alpha=0.3)
 band!(ax2,post_roll.freq,post_roll.mp .- post_roll.stp,post_roll.mp .+ post_roll.stp,color=:firebrick,alpha=0.3)
-save("Figs/PaperFigs/Roll_tracking.png",f,px_per_unit=4)
+# save("Figs/PaperFigs/Roll_tracking.png",f,px_per_unit=4)
 f
 ##
 p = angle.(Hi_yaw)
@@ -292,3 +292,11 @@ phase_yaw_lm = lm(@formula(phase ~ condition + freq), all_data_yaw)
 phase_roll_lm = lm(@formula(phase ~ condition + freq), all_data_roll)
 ##
 
+h5open("teth_data.h5", "w") do file
+    file["Hi_fx"] = Hi_fx
+    file["Hf_fx"] = Hf_fx
+    file["Hi_yaw"] = Hi_yaw
+    file["Hf_yaw"] = Hf_yaw
+    file["Hi_roll"] = Hi_roll
+    file["Hf_roll"] = Hf_roll
+end

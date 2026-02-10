@@ -1161,16 +1161,7 @@ function tf_freq(x,y,freqqs,fs)
     return h_idx 
 end
 
-function unwrap_negative(phases::AbstractVector{<:Real})
-    unwrapped = copy(phases)
-    for i in 2:length(unwrapped)
-        Δ = unwrapped[i] - unwrapped[i-1]
-        if Δ > π        # big positive jump → push downward
-            unwrapped[i:end] .-= 2π
-        end
-    end
-    return unwrapped
-end
+
 function get_mean_changes_zscore(allmoths)
     fs = 1e4
     moths = collect(keys(allmoths))
@@ -1309,24 +1300,6 @@ function get_ci_freaky(v::Vector{ComplexF64};ci=0.95)
         end
     end
     return mu_g,mu_p,g_delt,p_delt
-end
-function unwrap_negative(ph)
-    ph = collect(ph)           # Ensure it's an array
-    unwrapped = copy(ph)
-
-    for i in 2:length(ph)
-        # raw jump
-        dp = ph[i] - unwrapped[i-1]
-
-        # If the jump is > +π, go negative
-        if dp > π
-            dp = dp - 2pi 
-        end 
-
-        unwrapped[i] = ph[i] + dp
-    end
-
-    return unwrapped
 end
 
 
