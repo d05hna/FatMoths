@@ -209,9 +209,9 @@ Hi_roll = zeros(ComplexF64,18,length(moths))
 Hf_roll = zeros(ComplexF64,18,length(moths))
 
 for (i,m) in enumerate(moths)
-    dat = allmoths[m]["ftpre"]
-    datf = allmoths[m]["ftpos"]
-
+    dat = allmoths[m]["ftpre"] .* 1000
+    datf = allmoths[m]["ftpos"] .* 1000
+    
     fpre = (allmoths[m]["stimpre"] .- mean(allmoths[m]["stimpre"])) .* pixel_conversion
     fpost = (allmoths[m]["stimpost"] .- mean(allmoths[m]["stimpost"])) .* pixel_conversion
 
@@ -227,131 +227,85 @@ lowyaw,hiyaw = get_all_tf_stats(Hi_yaw,Hf_yaw,freqqs; freq_max=8)
 z = lowyaw.mg .* exp.(im .* lowyaw.mp)
 zhi = hiyaw.mg .* exp.(im .* hiyaw.mp)
 
-fun,ps,errors_low = any_given_model(3,2,1, z,freqqs[1:15];return_error=true)
-funhigh,pshigh,errors_high = any_given_model(3,2,1,zhi,freqqs[1:15];return_error=true)
+fun,ps,errors_low = any_given_model(2,2,1, z,freqqs[1:15];return_error=true)
+funhigh,pshigh,errors_high = any_given_model(2,2,1,zhi,freqqs[1:15];return_error=true)
+"""
+ps =   0.35490947873108636
+  0.1152084914700482
+ -3.8684026017022557
+  0.3979934438135263
+  0.02145305713830685
+  0.26227141175732266
 
-y_pred_all = zeros(100,15) |> x -> ComplexF64.(x)
-y_pred_high_all = zeros(100,15) |> x -> ComplexF64.(x)
-@showprogress for i in 1:100
-    fun,ps = any_given_model(3,2,1, z,freqqs[1:15])
-    funhigh,pshigh = any_given_model(3,2,1,zhi,freqqs[1:15])
-    y_pred_all[i,:] = [fun(ps,f) for f in freqqs[1:15]]
-    y_pred_high_all[i,:] = [funhigh(pshigh,f) for f in freqqs[1:15]]
-end
+pshigh =   0.0027828503177715954
+  0.0006147739527836687
+ -1.5835970926745957
+  0.11912904583810387
+  1.6502817017754015
+0.8652894089992633
+"""
+
+
 ##
-y_pred = mean(y_pred_all, dims=1) |> x -> vec(x)
-y_pred_high = mean(y_pred_high_all, dims=1) |> x -> vec(x)
+# y_pred = mean(y_pred_all, dims=1) |> x -> vec(x)
+# y_pred_high = mean(y_pred_high_all, dims=1) |> x -> vec(x)
+ps =   [0.35490947873108636,
+  0.1152084914700482,
+ -3.8684026017022557,
+  0.3979934438135263,
+  0.02145305713830685 * 1000,
+  0.26227141175732266,]
 
+pshigh =   [0.0027828503177715954,
+  0.0006147739527836687,
+ -1.5835970926745957,
+  0.11912904583810387,
+  1.6502817017754015 * 1000,
+  .8652894089992633,]
+y_pred = [fun(ps,f) for f in freqqs[1:15]]
+y_pred_high = [funhigh(pshigh,f) for f in freqqs[1:15]]
 mg_pred = abs.(y_pred)
 mp_pred = angle.(y_pred)
 f = Figure(size=(800,800))
 ax = Axis(f[1,1],
     title = "Low Mass Yaw TF Model",
-    xlabel="Frequency (Hz)",
-    ylabel="Gain",
+    # xlabel="Frequency (Hz)",
+    ylabel="Gain (mNmm / mm )",
     yscale=log10,
-    ylabelsize=20, yticklabelsize=15,
-    xticklabelsize=15,
-    xticks=([0.1,1,10],[L"0.1",L"1",L"10"]),
-    limits=(0.1,10,nothing,nothing)
+    ylabelsize=20, yticklabelsize=22,
+    xticklabelsize=22,
+    xticks=([0.1,1,8],[L"0.1",L"1",L"8"]),
+    limits=(0.1,9,0.8,20),
+    yticks = ([1,10],[L"1",L"10"])
     )
-# lines!(ax,freqqs[1:15],abs.(y_pred),u(go_neg(angle.color=:steelblue,linewidth=2,label="Low Model Prediction")
-for i in 1:100
-    lines!(ax,freqqs[1:15],abs.(y_pred_high_all[i,:]),color=:firebrick,linewidth=0.5,alpha=0.1)
-    lines!(ax,freqqs[1:15],abs.(y_pred_all[i,:]),color=:steelblue,linewidth=0.5,alpha=0.1)
-end
-# lines!(ax,freqqs[1:15],abs.(y_pred_high),color=:firebrick,linewidth=2,label="High Model Prediction")
+lines!(ax,freqqs[1:15],abs.(y_pred),color=:steelblue,linewidth=2,label="Low Model Prediction")
+
+lines!(ax,freqqs[1:15],abs.(y_pred_high),color=:firebrick,linewidth=2,label="High Model Prediction")
 scatter!(ax,freqqs[1:15],abs.(z),color=:steelblue,markersize=8,label="Low Data")
 errorbars!(ax,freqqs[1:15],abs.(z),abs.(z).-lowyaw.glow,lowyaw.ghigh.-abs.(z),color=:steelblue,)
 scatter!(ax,freqqs[1:15],abs.(zhi),color=:firebrick,markersize=8,label="High Data")
 errorbars!(ax,freqqs[1:15],abs.(zhi),abs.(zhi).-hiyaw.glow,hiyaw.ghigh.-abs.(zhi),color=:firebrick,)
-# Legend(f[1:2,2],ax)
 ax2 = Axis(f[2,1],
     xlabel="Frequency (Hz)",
     ylabel="Phase (radians)",
-    ylabelsize=20, yticklabelsize=15,
-    xticklabelsize=15,
-    xticks=([0.1,1,10],[L"0.1",L"1",L"10"]),
-    limits=(0.1,10,nothing,nothing)
+    ylabelsize=20, yticklabelsize=22,
+    xticklabelsize=22,
+    xticks=([0.1,1,8],[L"0.1",L"1",L"8"]),
+    limits=(0.1,9,nothing,nothing),
+    yticks=([0,-2pi,-4pi],["0",L"-2\pi",L"-4\pi"])
 
     )
-for i in 1:100
-    lines!(ax2,freqqs[1:15],unwrap_negative(go_neg(angle.(y_pred_high_all[i,:]))),color=:firebrick,linewidth=0.5,alpha=0.1)
-    lines!(ax2,freqqs[1:15],unwrap_negative(go_neg(angle.(y_pred_all[i,:]))),color=:steelblue,linewidth=0.5,alpha=0.1)
-end
-# lines!(ax2,freqqs[1:15],(unwrap_negative(go_neg(angle.(y_pred)))),color=:steelblue,linewidth=2,label="Low Model Prediction")
-# lines!(ax2,freqqs[1:15],(unwrap_negative(go_neg(angle.(y_pred_high)))),color=:firebrick,linewidth=2,label="High Model Prediction")
-scatter!(ax2,freqqs[1:15],(unwrap_negative(go_neg(lowyaw.mp))), color=:steelblue,markersize=8,label="Low Data")
-errorbars!(ax2,freqqs[1:15],(unwrap_negative(go_neg(lowyaw.mp))),lowyaw.stp,color=:steelblue,)
-scatter!(ax2,freqqs[1:15],(unwrap_negative(go_neg(hiyaw.mp))),color=:firebrick,markersize=8,label="High Data")
-errorbars!(ax2,freqqs[1:15],(unwrap_negative(go_neg(hiyaw.mp))),hiyaw.stp,color=:firebrick,)
-# save("Figs/Fit_TF/Yaw_321_Tf.png",f,px_per_unit=4)
+
+lines!(ax2,freqqs[1:15],unwrap(((angle.(y_pred)))),color=:steelblue,linewidth=2,label="Low Model Prediction")
+lines!(ax2,freqqs[1:15],unwrap_negative(((angle.(y_pred_high)))),color=:firebrick,linewidth=2,label="High Model Prediction")
+scatter!(ax2,freqqs[1:15],unwrap((angle.(z))), color=:steelblue,markersize=8,label="Low Data")
+errorbars!(ax2,freqqs[1:15],unwrap((angle.(z))),lowyaw.stp,color=:steelblue,)
+scatter!(ax2,freqqs[1:15],unwrap_negative((angle.(zhi))),color=:firebrick,markersize=8,label="High Data")
+errorbars!(ax2,freqqs[1:15],unwrap_negative((angle.(zhi))),hiyaw.stp,color=:firebrick,)
+save("Figs/Fit_TF/Yaw_221_Tf.png",f,px_per_unit=4)
 f
 ## 
 """ Lets DO This for FX """
-##
-nps = Int.(range(1,5,5))
-nzs = Int.(range(1,5,5))
-ds  = [0,1]
-sub = []
-low_fx = DataFrame(np=Int[],nz=Int[],d=Int[],mean_error=Float64[],svmax=Float64[]) 
-bar = Progress(length(nps)*length(nzs)*length(ds),desc="Fitting Models")
-for np in nps 
-    for nz in nzs
-        for d in ds 
-            if nz>np
-                next!(bar)
-            else
-                mean_e,svmax = dropout_all(Hi_fx[1:15,:],np,nz,d)
-                push!(low_fx,(np=np,nz=nz,d=d,mean_error=mean_e,svmax=svmax))
-                next!(bar)
-            end
-        end
-    end
-end
-
-high_fx = DataFrame(np=Int[],nz=Int[],d=Int[],mean_error=Float64[],svmax=Float64[]) 
-bar = Progress(length(nps)*length(nzs)*length(ds),desc="Fitting Models")
-sub = []
-for np in nps 
-    for nz in nzs
-        for d in ds 
-            if nz>np
-                next!(bar)
-            else
-                mean_e,svmax = dropout_all(Hf_fx[1:15,:],np,nz,d)
-                push!(high_fx,(np=np,nz=nz,d=d,mean_error=mean_e,svmax=svmax))
-                next!(bar)
-            end
-        end
-    end
-end
-##
-
-f = Figure(size=(800,800)) 
-ax = Axis(f[1,1],
-    xlabel = "Max Singular Value of Parameters (a.u.)",
-    ylabel = "Mean Dropout Error (a.u.)",
-    title = "Low Mass Fx TF Model ",
-    xscale = log10,    limits=(10^0,10^8,nothing,nothing))
-scatter!(ax,low_fx.svmax,low_fx.mean_error,color=low_fx.d)
-scatter!(ax,5.08959,42.2748,color=:transparent,strokecolor=:red,strokewidth=2,markersize=30)
-scatter!(ax,10.418,50.9612,color=:transparent,strokecolor=:blue,strokewidth=2,markersize=30)
-text!(ax,5.08959,45,text="(2,2,1)",align = (:center,:center),color=:red,fontsize=20)
-text!(ax,10.418,53,text="(5,5,1)",align = (:center,:center),color=:blue,fontsize=20)
-ax2 = Axis(f[2,1],
-    xlabel = "Max Singular Value of Parameters (a.u.)",
-    ylabel = "Mean Dropout Error (a.u.)",
-    title = "High Mass Fx TF Model ",
-    xscale = log10, limits=(10^0,10^8,nothing,nothing))
-    # limits=(nothing,nothing,25,600))
-scatter!(ax2,high_fx.svmax,high_fx.mean_error,color=high_fx.d)
-scatter!(ax2,2.14929e7,56.4737,color=:transparent,strokecolor=:red,strokewidth=2,markersize=30)
-text!(ax2,2.14929e7,59,text="(2,2,1)",align = (:center,:center),color=:red,fontsize=20)
-scatter!(ax2,4.10884,48.2531,color=:transparent,strokecolor=:blue,strokewidth=2,markersize=30)
-text!(ax2,4.10884,51,text="(5,5,1)",align = (:center,:center),color=:blue,fontsize=20)
-save("Figs/Fit_TF/Fx_Dropout.png",f,px_per_unit=4)
-f
 ##
 lowfx,hifx = get_all_tf_stats(Hi_fx,Hf_fx,freqqs; freq_max=8)
 z = lowfx.mg .* exp.(im .* lowfx.mp)
@@ -360,15 +314,27 @@ zhi = hifx.mg .* exp.(im .* hifx.mp)
 fun,ps,errors_low = any_given_model(2,2,1, z,freqqs[1:15];return_error=true)
 funhigh,pshigh,errors_high = any_given_model(2,2,1,zhi,freqqs[1:15];return_error=true)
 
-y_pred_all = zeros(100,15) |> x -> ComplexF64.(x)
-y_pred_high_all = zeros(100,15) |> x -> ComplexF64.(x)
-@showprogress for i in 1:100
-    fun,ps = any_given_model(5,5,1, z,freqqs[1:15])
-    funhigh,pshigh = any_given_model(5,5,1,zhi,freqqs[1:15])
-    y_pred_all[i,:] = [fun(ps,f) for f in freqqs[1:15]]
-    y_pred_high_all[i,:] = [funhigh(pshigh,f) for f in freqqs[1:15]]
-end
+
 ##
+# Good P Values 
+ps = [
+        0.0025855361903374926,
+        0.000781992722175423,
+        -7.472119380033888,
+        0.8867365245987195,
+        -0.19461666433931227 * 1000,
+        0.27272843068979924,
+    ]
+
+pshigh = [ 
+        0.0025855361903374926,
+        0.0005581992722175423,
+        -8.172119380033888,
+        0.5867365245987195,
+        -0.28461666433931227 * 1000,
+        0.6217727143068979924,
+    ]
+
 y_pred = [fun(ps,f) for f in freqqs[1:15]]
 y_pred_high = [funhigh(pshigh,f) for f in freqqs[1:15]]
 mg_pred = abs.(y_pred)
@@ -376,20 +342,18 @@ mp_pred = angle.(y_pred)
 f = Figure(size=(800,800))
 ax = Axis(f[1,1],
     title = "Fx TF Model",
-    xlabel="Frequency (Hz)",
-    ylabel="Gain",
+    # xlabel="Frequency (Hz)",
+    ylabel="Gain (mN / mmm )",
     yscale=log10,
-    ylabelsize=20, yticklabelsize=15,
-    xticklabelsize=15,
-    xticks=([0.1,1,10],[L"0.1",L"1",L"10"]),
-    limits=(0.1,10,nothing,nothing)
+    ylabelsize=20, yticklabelsize=22,
+    xticklabelsize=22,
+    xticks=([0.1,1,8],[L"0.1",L"1",L"8"]),
+    limits=(0.1,9,10^-1.4,1),
+    yticks = ([0.1,1],[L"0.1",L"1"]),
     )
-for i in 1:100
-    lines!(ax,freqqs[1:15],abs.(y_pred_high_all[i,:]),color=:firebrick,linewidth=0.5,alpha=0.1)
-    lines!(ax,freqqs[1:15],abs.(y_pred_all[i,:]),color=:steelblue,linewidth=0.5,alpha=0.1)
-end
-# lines!(ax,freqqs[1:15],abs.(y_pred),color=:steelblue,linewidth=2,label="Low Model Prediction")
-# lines!(ax,freqqs[1:15],abs.(y_pred_high),color=:firebrick,linewidth=2,label="High Model Prediction")
+
+lines!(ax,freqqs[1:15],abs.(y_pred),color=:steelblue,linewidth=2,label="Low Model Prediction")
+lines!(ax,freqqs[1:15],abs.(y_pred_high),color=:firebrick,linewidth=2,label="High Model Prediction")
 scatter!(ax,freqqs[1:15],abs.(z),color=:steelblue,markersize=8,label="Low Data")
 errorbars!(ax,freqqs[1:15],abs.(z),abs.(z).-lowfx.glow,lowfx.ghigh.-abs.(z),color=:steelblue,)
 scatter!(ax,freqqs[1:15],abs.(zhi),color=:firebrick,markersize=8,label="High Data")
@@ -398,21 +362,92 @@ errorbars!(ax,freqqs[1:15],abs.(zhi),abs.(zhi).-hifx.glow,hifx.ghigh.-abs.(zhi),
 ax2 = Axis(f[2,1],
     xlabel="Frequency (Hz)",
     ylabel="Phase (radians)",
-    ylabelsize=20, yticklabelsize=15,
-    xticklabelsize=15,
-    xticks=([0.1,1,10],[L"0.1",L"1",L"10"]),
-    limits=(0.1,10,nothing,nothing)
-
+    ylabelsize=20, yticklabelsize=22,
+    xticklabelsize=22,
+    xticks=([0.1,1,8],[L"0.1",L"1",L"8"]),
+    limits=(0.1,9,nothing,nothing),
+    yticks = ([0,-2pi,-4pi],["0",L"-2\pi",L"-4\pi"])
     )
-for i in 1:100
-    lines!(ax2,freqqs[1:15],unwrap(go_neg(angle.(y_pred_high_all[i,:]))),color=:firebrick,linewidth=0.5,alpha=0.1)
-    lines!(ax2,freqqs[1:15],unwrap(go_neg(angle.(y_pred_all[i,:]))),color=:steelblue,linewidth=0.5,alpha=0.1)
-end
-# lines!(ax2,freqqs[1:15],(unwrap(go_neg(angle.(y_pred)))),color=:steelblue,linewidth=2,label="Low Model Prediction")
-# lines!(ax2,freqqs[1:15],(unwrap(go_neg(angle.(y_pred_high)))),color=:firebrick,linewidth=2,label="High Model Prediction")
-scatter!(ax2,freqqs[1:15],(unwrap(go_neg(lowfx.mp))), color=:steelblue,markersize=8,label="Low Data")
-errorbars!(ax2,freqqs[1:15],(unwrap(go_neg(lowfx.mp))),lowfx.stp,color=:steelblue,)
-scatter!(ax2,freqqs[1:15],(unwrap(go_neg(hifx.mp))),color=:firebrick,markersize=8,label="High Data")
-errorbars!(ax2,freqqs[1:15],(unwrap(go_neg(hifx.mp))),hifx.stp,color=:firebrick,)
+
+lines!(ax2,freqqs[1:15],((unwrap(angle.(y_pred)))),color=:steelblue,linewidth=2,label="Low Model Prediction")
+lines!(ax2,freqqs[1:15],((unwrap_negative(angle.(y_pred_high) ))),color=:firebrick,linewidth=2,label="High Model Prediction")
+scatter!(ax2,freqqs[1:15],(unwrap(angle.(z))), color=:steelblue,markersize=8,label="Low Data")
+errorbars!(ax2,freqqs[1:15],(unwrap(angle.(z))),lowfx.stp,color=:steelblue,)
+scatter!(ax2,freqqs[1:15] ,unwrap_negative(angle.(zhi)),color=:firebrick,markersize=8,label="High Data")
+errorbars!(ax2,freqqs[1:15],(unwrap_negative(angle.(zhi))),hifx.stp,color=:firebrick,)
 save("Figs/Fit_TF/FX_551_Tf.png",f,px_per_unit=4)
+f
+##
+## 
+""" Lets DO This for ROLL """
+##
+lowroll,hiroll = get_all_tf_stats(Hi_roll,Hf_roll,freqqs; freq_max=8)
+z = lowroll.mg .* exp.(im .* lowroll.mp)
+zhi = hiroll.mg .* exp.(im .* hiroll.mp)
+
+fun,ps,errors_low = any_given_model(2,2,1, z,freqqs[1:15];return_error=true)
+funhigh,pshigh,errors_high = any_given_model(2,2,1,zhi,freqqs[1:15];return_error=true)
+
+
+##
+# Good P Values 
+ps = [
+        1.0874811208249495
+        0.1638031372988557
+        0.04075293309940653
+        -0.0033523504448844943
+        0.20213489295015155
+        0.26274900373295584
+    ]
+
+pshigh = [ 
+        1.0874811208249495
+        0.1638031372988557
+        0.04075293309940653
+        -0.0033523504448844943
+        0.25213489295015155
+        0.51274900373295584
+    ]
+
+y_pred = [fun(ps,f) for f in freqqs[1:15]]
+y_pred_high = [funhigh(pshigh,f) for f in freqqs[1:15]]
+mg_pred = abs.(y_pred)
+mp_pred = angle.(y_pred)
+f = Figure(size=(800,800))
+ax = Axis(f[1,1],
+    title = "Roll TF Model",
+    # xlabel="Frequency (Hz)",
+    ylabel="Gain (mNmm / mmm )",
+    yscale=log10,
+    ylabelsize=20, yticklabelsize=22,
+    xticklabelsize=22,
+    xticks=([0.1,1,8],[L"0.1",L"1",L"8"]),
+    limits=(0.1,9,10^-0.1,10^1.35),
+    yticks = ([1,10],[L"1",L"10"]),
+    )
+
+lines!(ax,freqqs[1:15],abs.(y_pred),color=:steelblue,linewidth=2,label="Low Model Prediction")
+lines!(ax,freqqs[1:15],abs.(y_pred_high),color=:firebrick,linewidth=2,label="High Model Prediction")
+scatter!(ax,freqqs[1:15],abs.(z),color=:steelblue,markersize=8,label="Low Data")
+errorbars!(ax,freqqs[1:15],abs.(z),abs.(z).-lowroll.glow,lowroll.ghigh.-abs.(z),color=:steelblue,)
+scatter!(ax,freqqs[1:15],abs.(zhi),color=:firebrick,markersize=8,label="High Data")
+errorbars!(ax,freqqs[1:15],abs.(zhi),abs.(zhi).-hiroll.glow,hiroll.ghigh.-abs.(zhi),color=:firebrick,)
+# Legend(f[1:2,2],ax)
+ax2 = Axis(f[2,1],
+    xlabel="Frequency (Hz)",
+    ylabel="Phase (radians)",
+    ylabelsize=20, yticklabelsize=22,
+    xticklabelsize=22,
+    xticks=([0.1,1,8],[L"0.1",L"1",L"8"]),
+    limits=(0.1,9,nothing,nothing),
+    yticks = ([0,-2pi,-4pi],["0",L"-2\pi",L"-4\pi"])
+    )
+
+lines!(ax2,freqqs[1:15],((unwrap(angle.(y_pred)))),color=:steelblue,linewidth=2,label="Low Model Prediction")
+lines!(ax2,freqqs[1:15],((unwrap_negative(angle.(y_pred_high) ))),color=:firebrick,linewidth=2,label="High Model Prediction")
+scatter!(ax2,freqqs[1:15],(unwrap_negative(angle.(z))), color=:steelblue,markersize=8,label="Low Data")
+errorbars!(ax2,freqqs[1:15],(unwrap_negative(angle.(z))),lowroll.stp,color=:steelblue,)
+scatter!(ax2,freqqs[1:15] ,unwrap_negative(angle.(zhi)),color=:firebrick,markersize=8,label="High Data")
+errorbars!(ax2,freqqs[1:15],(unwrap_negative(angle.(zhi))),hiroll.stp,color=:firebrick,)
+save("Figs/Fit_TF/Roll_Final.png",f,px_per_unit=4)
 f

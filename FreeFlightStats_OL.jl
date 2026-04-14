@@ -74,7 +74,7 @@ logx = log10.(freqqs[1:15])
 Δ = 0.06 # width in log units
 left  = 10 .^ (logx .- Δ/2)
 right = 10 .^ (logx .+ Δ/2)
-widths = right .- left
+ws = right .- left
 
 f = Figure(size=(800,400)) 
 ax = Axis(f[1,1],xscale=log10,limits=(0.15,10,0,4))
@@ -87,7 +87,7 @@ ax.yticks = ([0,1,2,4],[L"0",L"1",L"2",L"4"])
 ax.xlabel="Frequency (Hz)"
 ax.ylabel = "Gain Change Multiple"
 
-barplot!(ax,freqqs[1:15],mgchange,width=widths,color=:grey)
+barplot!(ax,freqqs[1:15],mgchange,width=ws,color=:grey)
 errorbars!(ax,freqqs[1:15],mgchange,semchange,color=:black)
 lines!(ax, range(0.15,10,length=16),repeat([1],16),linestyle=:dash,color=:red,label="No Change")
 axislegend(ax)
@@ -118,3 +118,19 @@ all_df = vcat(low_mass_df,high_mass_df)
 
 lm_gain = lm(@formula(gain ~ condition + freq), all_df)
 lm_phase = lm(@formula(phase ~ condition + freq), all_df)
+## Is the log gain ration the cursed 70% ? 
+
+pre.log_gain =  log10.(pre.mg)
+post.log_gain = log10.(post.mg)
+
+logx = log10.(freqqs[1:15])
+Δ = 0.06 # width in log units
+left  = 10 .^ (logx .- Δ/2)
+right = 10 .^ (logx .+ Δ/2)
+ws = right .- left
+
+fig = Figure() 
+ax = Axis(fig[1,1],xscale=log10,xticks=([0.2,1,8],[L"0.2",L"1",L"8"]),xlabel="Frequency (Hz)",ylabel="Log Gain")
+barplot!(pre.freq, pre.log_gain, width = ws,color=:steelblue)
+barplot!(post.freq, post.log_gain, width=ws, color=:firebrick)
+fig

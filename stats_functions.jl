@@ -142,7 +142,7 @@ function unwrap_negative(ph)
     unwrapped = copy(ph) 
 
     for i in 2:length(ph)
-        if ph[i] - unwrapped[i-1] > 8pi 
+        if ph[i] - unwrapped[i-1] > pi *0.9
             ph[i:end] .-= 2pi
             unwrapped[i:end] .-= 2pi 
         end
