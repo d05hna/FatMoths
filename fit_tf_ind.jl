@@ -3,13 +3,20 @@ using FFTW
 using JLD2 
 using GLMakie 
 using DataFrames 
-using AlgebraOfGraphics
+using AlgebraOfGraphics 
 using StatsBase
 using Pipe 
 using DataFramesMeta  
 using Interpolations
 using Optim
 using ControlSystems
+GLMakie.activate!()
+theme = theme_minimal()
+# theme.palette = (; color = ColorSchemes.tab20)
+theme.palette = (; color = [:firebrick,:steelblue])
+theme.fontsize = 20
+set_theme!(theme)
+
 @load "fat_moths_set_1.jld" allmoths 
 include("me_functions.jl")
 mc = get_mean_changes(allmoths;axis=6)
@@ -62,7 +69,8 @@ function any_given_model(np,nz,d,z,freqqs;return_error = false)
         res = optimize(p -> eval_model(p,mod_fun,z,freqqs[1:15]),p0,NelderMead())
         e = Optim.minimum(res)
         if e < best_e
-            best_e = e
+            best_e = e 
+
             best_ps = Optim.minimizer(res)
         end
         if return_error
@@ -80,44 +88,45 @@ end
 
 ##
 
-m = moths[1] 
-tz_pre = tf_freq(0.14 .*(allmoths[m]["stimpre"] .- mean(allmoths[m]["stimpre"])),allmoths[m]["ftpre"][:,6] .* 1000,freqqs,fs)
+m = moths[3] 
+tz_pre = tf_freq(-0.14 .*(allmoths[m]["stimpre"] .- mean(allmoths[m]["stimpre"])),allmoths[m]["ftpre"][:,6] .* 1000,freqqs,fs)
 
-mf,ps = any_given_model(2,2,1,tz_pre[1:15],freqqs)
-ps[end]=round(ps[end],digits=4)
+np = 2
+nz = 2
+
+mf,ps = any_given_model(np,nz,1,tz_pre[1:15],freqqs)
+ps[end]=round(ps[end],digits=3)
 ##
 y_pred = [mf(ps,f) for f in freqqs[1:15]]
 f = Figure() 
-
 ax = Axis(f[1,1],xscale=log10,yscale=log10,xlabel="freq",ylabel="gain")
 scatter!(ax,freqqs[1:15],abs.(tz_pre)[1:15],color=:steelblue)
 lines!(ax,freqqs[1:15],abs.(y_pred),color=:steelblue)
 ax2 = Axis(f[2,1],xscale=log10,ylabel="phase",xlabel="freq")
-scatter!(ax2,freqqs[1:15],angle.(tz_pre)[1:15],color=:steelblue)
-lines!(ax2,freqqs[1:15],angle.(y_pred),color=:steelblue)
+scatter!(ax2,freqqs[1:15],unwrap(angle.(tz_pre)[1:15]),color=:steelblue)
+lines!(ax2,freqqs[1:15],unwrap(angle.(y_pred)),color=:steelblue)
 
 f
 ##
 function build_statespace(mod_fun, ps, nz, np)
-
     a = ps[1:nz]           # numerator coeffs
-    b = ps[nz+1:nz+np+1]  # denominator coeffs  
+    b = ps[nz+1:nz+np]  # denominator coeffs  
+    println(a)
+    println(b)
     k = ps[end-1]
     T = ps[end]
     
-    num = k .* reverse(a)
-    den = reverse(b)
+    num = k .* reverse(b)
+    den = reverse(a)
     
     num = num ./ den[1]
     den = den ./ den[1]
     s = tf("s")
-    L = T
+    L = abs(T)
     return tf(num, den) * exp(-L*s)
 end
 
-
-np = 2 
-nz = 2 
+ 
 
 x = 0.14 .* (allmoths[m]["stimpre"] .- mean(allmoths[m]["stimpre"]))
 itp = interpolate(x, BSpline(Linear()))
@@ -129,15 +138,21 @@ tf_ss_d = c2d(tf_ss,1/fs);
 
 result = lsim(tf_ss_d,flower');
 y,t,x,u=result;
+
+
 ##
-lines(vec(y))
-##
-f = Figure() 
-ax = Axis(f[1,1])
-lines!(ax,t_out,flower)
-ax = Axis(f[2,1])
-lines!(ax,t_out,y_td)
+y_pred = [mf(ps,f) for f in freqqs[1:15]]
+f = Figure(size=(1200,600)) 
+
+ax = Axis(f[1,1],xscale=log10,yscale=log10,xlabel="freq",ylabel="gain")
+scatter!(ax,freqqs[1:15],abs.(tz_pre)[1:15],color=:steelblue)
+lines!(ax,freqqs[1:15],abs.(y_pred),color=:steelblue)
+ax2 = Axis(f[2,1],xscale=log10,ylabel="phase (deg)",xlabel="freq")
+scatter!(ax2,freqqs[1:15],unwrap(angle.(tz_pre)[1:15]) .* 360/2pi,color=:steelblue)
+lines!(ax2,freqqs[1:15],unwrap(angle.(y_pred)) .*360/2pi,color=:steelblue)
+ax = Axis(f[1:2,2],xlabel="time (s)",ylabel="flower position (mm)")
+lines!(ax,t,flower,color=:black)
+ax2 = Axis(f[1:2,2], ylabel="Yaw Torque mN * mm ", yaxisposition=:right,yticklabelcolor=:steelblue,ylabelcolor=:steelblue)
+hidexdecorations!(ax2)
+lines!(ax2,t,vec(y),color=:steelblue)
 f
-##
-sys_tf, T = build_statespace(nothing, ps, nz, np)
-println("Poles: ", poles(sys_tf))
